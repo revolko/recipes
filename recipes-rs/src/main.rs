@@ -45,7 +45,7 @@ fn main() {
         .expect("Error loading recipes");
 
     for recipe in result {
-        println!("{}", recipe.recipe_id);
+        println!("{}", recipe.id);
         println!("{}", recipe.name);
     }
 
