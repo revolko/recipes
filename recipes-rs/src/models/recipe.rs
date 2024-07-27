@@ -1,4 +1,4 @@
-use diesel::prelude::*;
+use diesel::{Queryable, Selectable, Insertable};
 use crate::schema::recipes;
 
 #[derive(Queryable, Selectable)]
