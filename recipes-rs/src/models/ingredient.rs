@@ -1,6 +1,5 @@
 use std::i16;
 
-use diesel::sql_types::Double;
 use diesel::{Queryable, Selectable, Insertable, Identifiable, Associations};
 use crate::schema::{ingredients, recipe_ingredient};
 use crate::models::recipe::Recipe;
