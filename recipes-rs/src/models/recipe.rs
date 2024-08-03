@@ -1,7 +1,8 @@
 use diesel::{Queryable, Selectable, Insertable};
+use serde::Serialize;
 use crate::schema::recipes;
 
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Serialize)]
 #[diesel(table_name = recipes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Recipe {
