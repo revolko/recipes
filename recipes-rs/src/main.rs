@@ -15,8 +15,13 @@ mod models {
     pub mod category;
     pub mod ingredient;
 }
-
 use models::recipe::Recipe;
+
+mod services {
+    pub mod recipes;
+}
+use services::recipes::recipes_config;
+
 
 #[derive(Serialize)]
 struct ResponseBodyVec<T> {
@@ -64,6 +69,10 @@ async fn main() -> io::Result<()> {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .service(hello)
+            .service(
+                web::scope("/recipes")
+                .configure(recipes_config)
+            )
     })
     .bind(("0.0.0.0", 8080))?
     .run()
