@@ -1,6 +1,8 @@
-use diesel::{query_dsl::methods::SelectDsl, SelectableHelper};
-use diesel_async::{AsyncPgConnection, RunQueryDsl};
-use diesel_async::pooled_connection::deadpool::Pool;
+use diesel::prelude::*;
+use diesel_async::{
+    pooled_connection::deadpool::Pool,
+    AsyncPgConnection, RunQueryDsl
+};
 use serde::Serialize;
 use derive_more::derive::{Display, Error};
 use actix_web::{
