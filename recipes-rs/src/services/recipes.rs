@@ -75,6 +75,32 @@ pub async fn recipes_list(
     );
 }
 
+#[get("/{id}")]
+pub async fn recipes_get(
+    pool: web::Data<Pool<AsyncPgConnection>>,
+    path: web::Path<i32>,
+) -> actix_web::Result<impl Responder> {
+    use crate::schema::recipes::dsl::*;
+    let recipe_id = path.into_inner();
+
+    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+
+    let recipe: Recipe = recipes
+        .find(recipe_id)
+        .first(&mut connection)
+        .await
+        .map_err(|_e| ApiErrors::NotFound)?;
+    let response_serialized = serde_json::to_string(&recipe)
+        .map_err(|_e| ApiErrors::InternalError)?;
+
+    return Ok(
+        HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .body(response_serialized)
+    );
+}
+
 pub fn recipes_config(cfg: &mut web::ServiceConfig) {
     cfg.service(recipes_list);
+    cfg.service(recipes_get);
 }
