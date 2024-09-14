@@ -6,7 +6,7 @@ use diesel_async::{
 use serde::Serialize;
 use derive_more::derive::{Display, Error};
 use actix_web::{
-    get, post, put, web, error,
+    get, post, put, delete, web, error,
     http::{StatusCode, header::ContentType},
     HttpResponse, Responder
 };
@@ -153,9 +153,33 @@ pub async fn recipes_change(
     );
 }
 
+#[delete("/{id}")]
+pub async fn recipes_delete(
+    pool: web::Data<Pool<AsyncPgConnection>>,
+    path: web::Path<i32>,
+) -> actix_web::Result<impl Responder> {
+    use crate::schema::recipes::dsl::*;
+    let recipe_id = path.into_inner();
+
+    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+
+    diesel::delete(recipes.find(recipe_id))
+        .execute(&mut connection)
+        .await
+        .map_err(|_e| ApiErrors::InternalError)?;
+
+    return Ok(
+        HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .status(StatusCode::NO_CONTENT)
+        .finish()
+    );
+}
+
 pub fn recipes_config(cfg: &mut web::ServiceConfig) {
     cfg.service(recipes_list);
     cfg.service(recipes_get);
     cfg.service(recipes_create);
     cfg.service(recipes_change);
+    cfg.service(recipes_delete);
 }
