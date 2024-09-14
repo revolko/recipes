@@ -1,4 +1,4 @@
-use diesel::{Queryable, Selectable, Insertable};
+use diesel::{prelude::AsChangeset, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use crate::schema::recipes;
 
@@ -26,4 +26,16 @@ pub struct NewRecipe {
     pub preparation_needed: bool,
     pub portions: i32,
     pub difficulty: i32,
+}
+
+#[derive(AsChangeset, Deserialize)]
+#[diesel(table_name = recipes)]
+pub struct ChangeRecipe {
+    pub name: Option<String>,
+    pub instructions: Option<String>,
+    pub cuisine: Option<String>,
+    pub duration_min: Option<i32>,
+    pub preparation_needed: Option<bool>,
+    pub portions: Option<i32>,
+    pub difficulty: Option<i32>,
 }
