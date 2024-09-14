@@ -24,6 +24,8 @@ enum ApiErrors {
     InternalError,
     #[display("An internal error occurred. Please try again later.")]
     DatabaseConnectionError,
+    #[display("Not found")]
+    NotFound,
 }
 
 impl error::ResponseError for ApiErrors {
@@ -32,6 +34,7 @@ impl error::ResponseError for ApiErrors {
             // TODO maybe logging here?
             ApiErrors::InternalError => println!("Internal Error"),
             ApiErrors::DatabaseConnectionError => println!("DatabaseConnectionError"),
+            ApiErrors::NotFound => println!("Not found"),
         }
         HttpResponse::build(self.status_code())
             .insert_header(ContentType::html())
@@ -42,10 +45,10 @@ impl error::ResponseError for ApiErrors {
         match *self {
             ApiErrors::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrors::DatabaseConnectionError => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrors::NotFound => StatusCode::NOT_FOUND,
         }
     }
 }
-
 
 #[get("")]
 pub async fn recipes_list(
