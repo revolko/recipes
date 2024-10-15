@@ -2,12 +2,28 @@ on:
   push
 
 jobs:
-  build:
-    name: Conventional commits check
+  commits:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: webiny/action-conventional-commits@v1.3.0
+      - name: Conventional commits check
+        uses: webiny/action-conventional-commits@v1.3.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Cargo check
+        run: cargo check
+        working-directory: ./recipes-rs
+
+      - name: Cargo test
+        run: cargo test
+        working-directory: ./recipes-rs
