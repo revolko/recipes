@@ -17,9 +17,7 @@ mod models {
 }
 use models::recipe::Recipe;
 
-mod services {
-    pub mod recipes;
-}
+mod services;
 use services::recipes::recipes_config;
 
 #[derive(Serialize)]
