@@ -1,6 +1,6 @@
 use crate::models::recipe::Recipe;
-use diesel::prelude::*;
 use crate::schema::{categories, recipe_category};
+use diesel::prelude::*;
 
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = categories)]
