@@ -5,18 +5,12 @@ use actix_web::{
 };
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
-use serde::Serialize;
 
 use crate::{
     models::recipe::{ChangeRecipe, NewRecipe, Recipe},
     schema::recipes,
-    services::errors,
+    services::{errors, utils},
 };
-
-#[derive(Serialize)]
-struct ResponseBodyVec<T> {
-    pub result: T,
-}
 
 #[get("")]
 pub async fn recipes_list(
@@ -34,7 +28,7 @@ pub async fn recipes_list(
         .await;
     let recipes_vec = db_result.map_err(|_e| errors::ApiErrors::InternalError)?;
 
-    let response_body = ResponseBodyVec {
+    let response_body = utils::ResponseBodyVec {
         result: recipes_vec,
     };
     let response_serialized =

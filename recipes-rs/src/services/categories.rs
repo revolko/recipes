@@ -9,7 +9,7 @@ use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQuer
 use crate::{
     models::category::{Category, NewCategory},
     schema::categories,
-    services::errors,
+    services::{errors, utils},
 };
 
 #[get("")]
@@ -27,8 +27,11 @@ pub async fn categories_list(
         .await;
     let categories_vec = db_result.map_err(|_e| errors::ApiErrors::InternalError)?;
 
+    let response_body = utils::ResponseBodyVec {
+        result: categories_vec,
+    };
     let response_serialized =
-        serde_json::to_string(&categories_vec).map_err(|_e| errors::ApiErrors::InternalError)?;
+        serde_json::to_string(&response_body).map_err(|_e| errors::ApiErrors::InternalError)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
