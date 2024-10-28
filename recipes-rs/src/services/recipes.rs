@@ -1,17 +1,17 @@
-use diesel::prelude::*;
-use diesel_async::{
-    pooled_connection::deadpool::Pool,
-    AsyncPgConnection, RunQueryDsl
-};
-use serde::Serialize;
-use derive_more::derive::{Display, Error};
 use actix_web::{
-    get, post, put, delete, web, error,
-    http::{StatusCode, header::ContentType},
-    HttpResponse, Responder
+    delete, error, get,
+    http::{header::ContentType, StatusCode},
+    post, put, web, HttpResponse, Responder,
 };
+use derive_more::derive::{Display, Error};
+use diesel::prelude::*;
+use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
+use serde::Serialize;
 
-use crate::{models::recipe::{ChangeRecipe, NewRecipe, Recipe}, schema::recipes};
+use crate::{
+    models::recipe::{ChangeRecipe, NewRecipe, Recipe},
+    schema::recipes,
+};
 
 #[derive(Serialize)]
 struct ResponseBodyVec<T> {
@@ -55,24 +55,26 @@ pub async fn recipes_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
 ) -> actix_web::Result<impl Responder> {
     // TODO: logging
-    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+    let mut connection = pool
+        .get()
+        .await
+        .map_err(|_e| ApiErrors::DatabaseConnectionError)?;
 
     let db_result = recipes::table
         .select(Recipe::as_select())
-        .load(&mut connection).await;
+        .load(&mut connection)
+        .await;
     let recipes_vec = db_result.map_err(|_e| ApiErrors::InternalError)?;
 
     let response_body = ResponseBodyVec {
         result: recipes_vec,
     };
-    let response_serialized = serde_json::to_string(&response_body)
-        .map_err(|_e| ApiErrors::InternalError)?;
+    let response_serialized =
+        serde_json::to_string(&response_body).map_err(|_e| ApiErrors::InternalError)?;
 
-    return Ok(
-        HttpResponse::Ok()
+    return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
-        .body(response_serialized)
-    );
+        .body(response_serialized));
 }
 
 #[get("/{id}")]
@@ -83,21 +85,22 @@ pub async fn recipes_get(
     use crate::schema::recipes::dsl::*;
     let recipe_id = path.into_inner();
 
-    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+    let mut connection = pool
+        .get()
+        .await
+        .map_err(|_e| ApiErrors::DatabaseConnectionError)?;
 
     let recipe: Recipe = recipes
         .find(recipe_id)
         .first(&mut connection)
         .await
         .map_err(|_e| ApiErrors::NotFound)?;
-    let response_serialized = serde_json::to_string(&recipe)
-        .map_err(|_e| ApiErrors::InternalError)?;
+    let response_serialized =
+        serde_json::to_string(&recipe).map_err(|_e| ApiErrors::InternalError)?;
 
-    return Ok(
-        HttpResponse::Ok()
+    return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
-        .body(response_serialized)
-    );
+        .body(response_serialized));
 }
 
 #[post("")]
@@ -107,7 +110,10 @@ pub async fn recipes_create(
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::recipes::dsl::*;
 
-    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+    let mut connection = pool
+        .get()
+        .await
+        .map_err(|_e| ApiErrors::DatabaseConnectionError)?;
 
     let recipe: Recipe = diesel::insert_into(recipes)
         .values(&recipe_body.into_inner())
@@ -115,14 +121,12 @@ pub async fn recipes_create(
         .get_result(&mut connection)
         .await
         .map_err(|_e| ApiErrors::InternalError)?;
-    let response_serialized = serde_json::to_string(&recipe)
-        .map_err(|_e| ApiErrors::InternalError)?;
+    let response_serialized =
+        serde_json::to_string(&recipe).map_err(|_e| ApiErrors::InternalError)?;
 
-    return Ok(
-        HttpResponse::Ok()
+    return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
-        .body(response_serialized)
-    );
+        .body(response_serialized));
 }
 
 #[put("/{id}")]
@@ -135,7 +139,10 @@ pub async fn recipes_change(
     let recipe_id = path.into_inner();
     let recipe_changeset = recipe_changeset.into_inner();
 
-    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+    let mut connection = pool
+        .get()
+        .await
+        .map_err(|_e| ApiErrors::DatabaseConnectionError)?;
 
     let recipe: Recipe = diesel::update(recipes.find(recipe_id))
         .set(&recipe_changeset)
@@ -143,14 +150,12 @@ pub async fn recipes_change(
         .get_result(&mut connection)
         .await
         .map_err(|_e| ApiErrors::InternalError)?;
-    let response_serialized = serde_json::to_string(&recipe)
-        .map_err(|_e| ApiErrors::InternalError)?;
+    let response_serialized =
+        serde_json::to_string(&recipe).map_err(|_e| ApiErrors::InternalError)?;
 
-    return Ok(
-        HttpResponse::Ok()
+    return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
-        .body(response_serialized)
-    );
+        .body(response_serialized));
 }
 
 #[delete("/{id}")]
@@ -161,19 +166,20 @@ pub async fn recipes_delete(
     use crate::schema::recipes::dsl::*;
     let recipe_id = path.into_inner();
 
-    let mut connection = pool.get().await.map_err(|_e| ApiErrors::DatabaseConnectionError)?;
+    let mut connection = pool
+        .get()
+        .await
+        .map_err(|_e| ApiErrors::DatabaseConnectionError)?;
 
     diesel::delete(recipes.find(recipe_id))
         .execute(&mut connection)
         .await
         .map_err(|_e| ApiErrors::InternalError)?;
 
-    return Ok(
-        HttpResponse::Ok()
+    return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
         .status(StatusCode::NO_CONTENT)
-        .finish()
-    );
+        .finish());
 }
 
 pub fn recipes_config(cfg: &mut web::ServiceConfig) {

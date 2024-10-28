@@ -1,9 +1,9 @@
 use std::i16;
 
-use diesel::{Queryable, Selectable, Insertable, Identifiable, Associations};
-use crate::schema::{ingredients, recipe_ingredient};
 use crate::models::recipe::Recipe;
+use crate::schema::{ingredients, recipe_ingredient};
 use bigdecimal::BigDecimal;
+use diesel::{Associations, Identifiable, Insertable, Queryable, Selectable};
 
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = ingredients)]
