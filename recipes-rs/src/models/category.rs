@@ -1,8 +1,9 @@
 use crate::models::recipe::Recipe;
 use crate::schema::{categories, recipe_category};
 use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = categories)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Category {

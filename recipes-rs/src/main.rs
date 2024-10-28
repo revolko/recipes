@@ -18,7 +18,7 @@ mod models {
 use models::recipe::Recipe;
 
 mod services;
-use services::recipes::recipes_config;
+use services::{categories::categories_config, recipes::recipes_config};
 
 #[derive(Serialize)]
 struct ResponseBodyVec<T> {
@@ -75,6 +75,7 @@ async fn main() -> io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .service(hello)
             .service(web::scope("/recipes").configure(recipes_config))
+            .service(web::scope("/categories").configure(categories_config))
     })
     .bind(("0.0.0.0", 8080))?
     .run()
