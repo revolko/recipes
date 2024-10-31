@@ -64,7 +64,34 @@ pub async fn categories_get(
         .body(response_serialized));
 }
 
+#[post("")]
+pub async fn categories_create(
+    pool: web::Data<Pool<AsyncPgConnection>>,
+    category_body: web::Json<NewCategory>,
+) -> actix_web::Result<impl Responder> {
+    use crate::schema::categories::dsl::*;
+
+    let mut connection = pool
+        .get()
+        .await
+        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+
+    let category: Category = diesel::insert_into(categories)
+        .values(&category_body.into_inner())
+        .returning(Category::as_returning())
+        .get_result(&mut connection)
+        .await
+        .map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized =
+        serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
+
+    return Ok(HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .body(response_serialized));
+}
+
 pub fn categories_config(cfg: &mut web::ServiceConfig) {
     cfg.service(categories_list);
     cfg.service(categories_get);
+    cfg.service(categories_create);
 }
