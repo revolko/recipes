@@ -11,10 +11,10 @@ pub struct Category {
     pub name: String,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Serialize, Deserialize)]
 #[diesel(table_name = categories)]
-pub struct NewCategory<'a> {
-    pub name: &'a str,
+pub struct NewCategory {
+    pub name: String,
 }
 
 #[derive(Identifiable, Queryable, Selectable, Associations, Insertable)]
