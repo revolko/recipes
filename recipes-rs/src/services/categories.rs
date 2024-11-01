@@ -16,10 +16,7 @@ use crate::{
 pub async fn categories_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
 ) -> actix_web::Result<impl Responder> {
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     let db_result = categories::table
         .select(Category::as_select())
@@ -46,10 +43,7 @@ pub async fn categories_get(
     use crate::schema::categories::dsl::*;
     let category_id = path.into_inner();
 
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     let category: Category = categories
         .find(category_id)
@@ -71,10 +65,7 @@ pub async fn categories_create(
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::categories::dsl::*;
 
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     let category: Category = diesel::insert_into(categories)
         .values(&category_body.into_inner())

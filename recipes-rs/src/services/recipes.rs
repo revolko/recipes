@@ -17,10 +17,7 @@ pub async fn recipes_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
 ) -> actix_web::Result<impl Responder> {
     // TODO: logging
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     let db_result = recipes::table
         .select(Recipe::as_select())
@@ -47,11 +44,7 @@ pub async fn recipes_get(
     use crate::schema::recipes::dsl::*;
     let recipe_id = path.into_inner();
 
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
-
+    let mut connection = utils::get_connection(pool).await?;
     let recipe: Recipe = recipes
         .find(recipe_id)
         .first(&mut connection)
@@ -72,10 +65,7 @@ pub async fn recipes_create(
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::recipes::dsl::*;
 
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     let recipe: Recipe = diesel::insert_into(recipes)
         .values(&recipe_body.into_inner())
@@ -101,10 +91,7 @@ pub async fn recipes_change(
     let recipe_id = path.into_inner();
     let recipe_changeset = recipe_changeset.into_inner();
 
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     let recipe: Recipe = diesel::update(recipes.find(recipe_id))
         .set(&recipe_changeset)
@@ -128,10 +115,7 @@ pub async fn recipes_delete(
     use crate::schema::recipes::dsl::*;
     let recipe_id = path.into_inner();
 
-    let mut connection = pool
-        .get()
-        .await
-        .map_err(|_e| errors::ApiErrors::DatabaseConnectionError)?;
+    let mut connection = utils::get_connection(pool).await?;
 
     diesel::delete(recipes.find(recipe_id))
         .execute(&mut connection)
