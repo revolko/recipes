@@ -17,6 +17,12 @@ pub struct NewCategory {
     pub name: String,
 }
 
+#[derive(AsChangeset, Deserialize)]
+#[diesel(table_name = categories)]
+pub struct ChangeCategory {
+    pub name: Option<String>,
+}
+
 #[derive(Identifiable, Queryable, Selectable, Associations, Insertable)]
 #[diesel(table_name = recipe_category)]
 #[diesel(belongs_to(Recipe))]
