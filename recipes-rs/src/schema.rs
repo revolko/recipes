@@ -1,8 +1,7 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    categories (id) {
-        id -> Int4,
+    categories (name) {
         name -> Varchar,
     }
 }
@@ -15,9 +14,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    recipe_category (recipe_id, category_id) {
+    recipe_category (recipe_id, category_name) {
         recipe_id -> Int4,
-        category_id -> Int4,
+        category_name -> Varchar,
     }
 }
 
@@ -44,7 +43,7 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(recipe_category -> categories (category_id));
+diesel::joinable!(recipe_category -> categories (category_name));
 diesel::joinable!(recipe_category -> recipes (recipe_id));
 diesel::joinable!(recipe_ingredient -> ingredients (ingredient_id));
 diesel::joinable!(recipe_ingredient -> recipes (recipe_id));

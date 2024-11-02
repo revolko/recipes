@@ -10,8 +10,7 @@ CREATE TABLE recipes (
 );
 
 CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL
+    name VARCHAR PRIMARY KEY
 );
 
 CREATE TABLE ingredients (
@@ -21,8 +20,8 @@ CREATE TABLE ingredients (
 
 CREATE TABLE recipe_category (
     recipe_id SERIAL REFERENCES recipes(id),
-    category_id SERIAL REFERENCES categories(id),
-    PRIMARY KEY (recipe_id, category_id)
+    category_name VARCHAR REFERENCES categories(name),
+    PRIMARY KEY (recipe_id, category_name)
 );
 
 CREATE TABLE recipe_ingredient (

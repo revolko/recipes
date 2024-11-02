@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = categories)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(primary_key(name))]
 pub struct Category {
-    pub id: i32,
     pub name: String,
 }
 
@@ -26,10 +26,10 @@ pub struct ChangeCategory {
 #[derive(Identifiable, Queryable, Selectable, Associations, Insertable)]
 #[diesel(table_name = recipe_category)]
 #[diesel(belongs_to(Recipe))]
-#[diesel(belongs_to(Category))]
+#[diesel(belongs_to(Category, foreign_key = category_name))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[diesel(primary_key(recipe_id, category_id))]
+#[diesel(primary_key(recipe_id, category_name))]
 pub struct RecipeCategory {
     pub recipe_id: i32,
-    pub category_id: i32,
+    pub category_name: String,
 }

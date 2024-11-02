@@ -38,15 +38,15 @@ pub async fn categories_list(
 #[get("/{id}")]
 pub async fn categories_get(
     pool: web::Data<Pool<AsyncPgConnection>>,
-    path: web::Path<i32>,
+    path: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::categories::dsl::*;
-    let category_id = path.into_inner();
+    let category_name = path.into_inner();
 
     let mut connection = utils::get_connection(pool).await?;
 
     let category: Category = categories
-        .find(category_id)
+        .find(category_name)
         .first(&mut connection)
         .await
         .map_err(|_e| errors::ApiErrors::NotFound)?;
@@ -84,16 +84,16 @@ pub async fn categories_create(
 #[put("/{id}")]
 pub async fn categories_change(
     pool: web::Data<Pool<AsyncPgConnection>>,
-    path: web::Path<i32>,
+    path: web::Path<String>,
     category_changeset: web::Json<ChangeCategory>,
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::categories::dsl::*;
-    let category_id = path.into_inner();
+    let category_name = path.into_inner();
     let category_changeset = category_changeset.into_inner();
 
     let mut connection = utils::get_connection(pool).await?;
 
-    let category: Category = diesel::update(categories.find(category_id))
+    let category: Category = diesel::update(categories.find(category_name))
         .set(&category_changeset)
         .returning(Category::as_returning())
         .get_result(&mut connection)
@@ -110,20 +110,20 @@ pub async fn categories_change(
 #[delete("/{id}")]
 pub async fn categories_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
-    path: web::Path<i32>,
+    path: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::categories::dsl::*;
     use crate::schema::recipe_category::dsl::*;
-    let category_id_path = path.into_inner();
+    let category_name_path = path.into_inner();
 
     let mut connection = utils::get_connection(pool).await?;
 
-    diesel::delete(recipe_category.filter(category_id.eq(category_id_path)))
+    diesel::delete(recipe_category.filter(category_name.eq(&category_name_path)))
         .execute(&mut connection)
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
 
-    diesel::delete(categories.find(category_id_path))
+    diesel::delete(categories.find(category_name_path))
         .execute(&mut connection)
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
