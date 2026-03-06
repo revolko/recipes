@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     models::{
         category::{Category, RecipeCategory},
+        ingredient::{Ingredient, NewIngredient, RecipeIngredient},
         recipe::{ChangeRecipe, NewRecipe, Recipe},
     },
     schema::{
@@ -112,10 +113,18 @@ pub async fn recipes_get(
 }
 
 #[derive(Deserialize)]
+struct NewRecipeBodyIngredients {
+    name: String,
+    part: i16,
+    quantity: i32,
+    unit: String,
+}
+
+#[derive(Deserialize)]
 struct NewRecipeBody {
-    #[serde(flatten)]
     recipe: NewRecipe,
     categories: Vec<String>,
+    ingredients: Vec<NewRecipeBodyIngredients>,
 }
 
 #[post("")]
@@ -124,7 +133,9 @@ pub async fn recipes_create(
     recipe_body: web::Json<NewRecipeBody>,
 ) -> actix_web::Result<impl Responder> {
     use crate::schema::categories::dsl::{name as category_name, *};
+    use crate::schema::ingredients::dsl::{name as ing_name, *};
     use crate::schema::recipe_category::dsl::*;
+    use crate::schema::recipe_ingredient::dsl::*;
     use crate::schema::recipes::dsl::*;
     let recipe_body = recipe_body.into_inner();
     let mut connection = utils::get_connection(pool).await?;
@@ -141,6 +152,7 @@ pub async fn recipes_create(
         }
     }
 
+    // TOOD: make as single transaction
     let recipe: Recipe = diesel::insert_into(recipes)
         .values(&recipe_body.recipe)
         .returning(Recipe::as_returning())
@@ -155,6 +167,42 @@ pub async fn recipes_create(
         };
         diesel::insert_into(recipe_category)
             .values(&cat_assoc)
+            .execute(&mut connection)
+            .await
+            .map_err(|_e| errors::ApiErrors::InternalError)?;
+    }
+
+    for ingredient in recipe_body.ingredients {
+        let new_ingredient = NewIngredient {
+            name: &ingredient.name,
+        };
+        let ingredient_db: Ingredient = match diesel::insert_into(ingredients)
+            .values(&new_ingredient)
+            .on_conflict_do_nothing()
+            .returning(Ingredient::as_returning())
+            .get_result(&mut connection)
+            .await
+            .optional()
+            .map_err(|_e| errors::ApiErrors::InternalError)?
+        {
+            Some(ingredient) => ingredient,
+            None => ingredients
+                .filter(ing_name.eq(&ingredient.name))
+                .select(Ingredient::as_select())
+                .first(&mut connection)
+                .await
+                .map_err(|_e| errors::ApiErrors::InternalError)?,
+        };
+
+        let ing_rec_assoc = RecipeIngredient {
+            recipe_id: recipe.id,
+            ingredient_id: ingredient_db.id,
+            part: ingredient.part,
+            quantity: ingredient.quantity.into(),
+            unit: ingredient.unit,
+        };
+        diesel::insert_into(recipe_ingredient)
+            .values(&ing_rec_assoc)
             .execute(&mut connection)
             .await
             .map_err(|_e| errors::ApiErrors::InternalError)?;
@@ -240,13 +288,19 @@ pub async fn recipes_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<i32>,
 ) -> actix_web::Result<impl Responder> {
-    use crate::schema::recipe_category::dsl::*;
+    use crate::schema::recipe_category::dsl::{recipe_id as cat_recipe_id, *};
+    use crate::schema::recipe_ingredient::dsl::{recipe_id as ing_recipe_id, *};
     use crate::schema::recipes::dsl::*;
     let recipe_id_path = path.into_inner();
 
     let mut connection = utils::get_connection(pool).await?;
 
-    diesel::delete(recipe_category.filter(recipe_id.eq(&recipe_id_path)))
+    diesel::delete(recipe_category.filter(cat_recipe_id.eq(&recipe_id_path)))
+        .execute(&mut connection)
+        .await
+        .map_err(|_e| errors::ApiErrors::InternalError)?;
+
+    diesel::delete(recipe_ingredient.filter(ing_recipe_id.eq(&recipe_id_path)))
         .execute(&mut connection)
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
