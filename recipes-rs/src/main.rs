@@ -59,6 +59,8 @@ async fn hello(pool: web::Data<Pool<AsyncPgConnection>>) -> actix_web::Result<im
         .body(respose_serialized));
 }
 
+const API_PREFIX: &str = "/api/v1";
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
@@ -74,8 +76,11 @@ async fn main() -> io::Result<()> {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .service(hello)
-            .service(web::scope("/recipes").configure(recipes_config))
-            .service(web::scope("/categories").configure(categories_config))
+            .service(
+                web::scope(API_PREFIX)
+                    .service(web::scope("/recipes").configure(recipes_config))
+                    .service(web::scope("/categories").configure(categories_config)),
+            )
     })
     .bind(("0.0.0.0", 8080))?
     .run()
