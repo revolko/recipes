@@ -11,6 +11,8 @@ use diesel_async::{
     AsyncPgConnection, RunQueryDsl,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use utoipa_actix_web::service_config;
 
 use crate::{
     models::{
@@ -26,14 +28,14 @@ use crate::{
     services::{errors, utils},
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct RecipeBody {
     #[serde(flatten)]
     recipe: Recipe,
     categories: Vec<Category>,
 }
 
-#[derive(Deserialize)]
+#[derive(ToSchema, Deserialize)]
 struct ChangeRecipeBody {
     #[serde(flatten)]
     recipe_change: ChangeRecipe,
@@ -53,6 +55,12 @@ async fn get_categories(
         .map_err(|_e| errors::ApiErrors::InternalError);
 }
 
+#[utoipa::path(
+    tag = "recipes",
+    responses(
+        (status = 200, description = "List recipes", body = utils::ResponseBodyVec<Vec<RecipeBody>>)
+    )
+)]
 #[get("")]
 pub async fn recipes_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -85,6 +93,13 @@ pub async fn recipes_list(
         .body(response_serialized));
 }
 
+// TODO: add ingredients to response but list should not have categories and ingredients
+#[utoipa::path(
+    tag = "recipes",
+    responses(
+        (status = 200, description = "Get recipe", body = RecipeBody)
+    )
+)]
 #[get("/{id}")]
 pub async fn recipes_get(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -112,7 +127,7 @@ pub async fn recipes_get(
         .body(response_serialized));
 }
 
-#[derive(Deserialize)]
+#[derive(ToSchema, Deserialize)]
 struct NewRecipeBodyIngredients {
     name: String,
     part: i16,
@@ -120,13 +135,19 @@ struct NewRecipeBodyIngredients {
     unit: String,
 }
 
-#[derive(Deserialize)]
+#[derive(ToSchema, Deserialize)]
 struct NewRecipeBody {
     recipe: NewRecipe,
     categories: Vec<String>,
     ingredients: Vec<NewRecipeBodyIngredients>,
 }
 
+#[utoipa::path(
+    tag = "recipes",
+    responses(
+        (status = 201, description = "Create recipe", body = Recipe)
+    )
+)]
 #[post("")]
 pub async fn recipes_create(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -210,11 +231,17 @@ pub async fn recipes_create(
     let response_serialized =
         serde_json::to_string(&recipe).map_err(|_e| errors::ApiErrors::InternalError)?;
 
-    return Ok(HttpResponse::Ok()
+    return Ok(HttpResponse::Created()
         .content_type(ContentType::json())
         .body(response_serialized));
 }
 
+#[utoipa::path(
+    tag = "recipes",
+    responses(
+        (status = 200, description = "Alter recipe", body = RecipeBody)
+    )
+)]
 #[put("/{id}")]
 pub async fn recipes_change(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -283,6 +310,12 @@ pub async fn recipes_change(
         .body(response_serialized));
 }
 
+#[utoipa::path(
+    tag = "recipes",
+    responses(
+        (status = 204, description = "Delete recipe")
+    )
+)]
 #[delete("/{id}")]
 pub async fn recipes_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -310,13 +343,13 @@ pub async fn recipes_delete(
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
 
-    return Ok(HttpResponse::Ok()
+    return Ok(HttpResponse::NoContent()
         .content_type(ContentType::json())
         .status(StatusCode::NO_CONTENT)
         .finish());
 }
 
-pub fn recipes_config(cfg: &mut web::ServiceConfig) {
+pub fn recipes_config(cfg: &mut service_config::ServiceConfig) {
     cfg.service(recipes_list);
     cfg.service(recipes_get);
     cfg.service(recipes_create);

@@ -1,8 +1,9 @@
 use crate::schema::recipes;
 use diesel::{prelude::AsChangeset, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Queryable, Selectable, Serialize)]
+#[derive(Queryable, Selectable, ToSchema, Serialize)]
 #[diesel(table_name = recipes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Recipe {
@@ -16,7 +17,7 @@ pub struct Recipe {
     pub difficulty: i32,
 }
 
-#[derive(Insertable, Deserialize)]
+#[derive(Insertable, ToSchema, Deserialize)]
 #[diesel(table_name = recipes)]
 pub struct NewRecipe {
     pub name: String,
@@ -28,7 +29,7 @@ pub struct NewRecipe {
     pub difficulty: i32,
 }
 
-#[derive(AsChangeset, Deserialize)]
+#[derive(ToSchema, AsChangeset, Deserialize)]
 #[diesel(table_name = recipes)]
 pub struct ChangeRecipe {
     pub name: Option<String>,

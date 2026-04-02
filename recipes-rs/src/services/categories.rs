@@ -5,6 +5,7 @@ use actix_web::{
 };
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
+use utoipa_actix_web::service_config;
 
 use crate::{
     models::category::{Category, ChangeCategory, NewCategory},
@@ -12,6 +13,12 @@ use crate::{
     services::{errors, utils},
 };
 
+#[utoipa::path(
+    tag = "categories",
+    responses(
+        (status = 200, description = "List categories", body = utils::ResponseBodyVec<Vec<Category>>)
+    )
+)]
 #[get("")]
 pub async fn categories_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -35,7 +42,13 @@ pub async fn categories_list(
         .body(response_serialized));
 }
 
-#[get("/{id}")]
+#[utoipa::path(
+    tag = "categories",
+    responses(
+        (status = 200, description = "Get category", body = Category)
+    )
+)]
+#[get("/{name}")]
 pub async fn categories_get(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
@@ -58,6 +71,12 @@ pub async fn categories_get(
         .body(response_serialized));
 }
 
+#[utoipa::path(
+    tag = "categories",
+    responses(
+        (status = 201, description = "Create category", body = Category)
+    )
+)]
 #[post("")]
 pub async fn categories_create(
     pool: web::Data<Pool<AsyncPgConnection>>,
@@ -76,12 +95,19 @@ pub async fn categories_create(
     let response_serialized =
         serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
 
-    return Ok(HttpResponse::Ok()
+    return Ok(HttpResponse::Created()
         .content_type(ContentType::json())
         .body(response_serialized));
 }
 
-#[put("/{id}")]
+// TODO: is needed??
+#[utoipa::path(
+    tag = "categories",
+    responses(
+        (status = 200, description = "Alter category", body = Category)
+    )
+)]
+#[put("/{name}")]
 pub async fn categories_change(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
@@ -107,7 +133,14 @@ pub async fn categories_change(
         .body(response_serialized));
 }
 
-#[delete("/{id}")]
+// TODO: don't let category to be deleted when referenced by recipe
+#[utoipa::path(
+    tag = "categories",
+    responses(
+        (status = 200, description = "Delete category")
+    )
+)]
+#[delete("/{name}")]
 pub async fn categories_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
@@ -128,13 +161,13 @@ pub async fn categories_delete(
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
 
-    return Ok(HttpResponse::Ok()
+    return Ok(HttpResponse::NoContent()
         .content_type(ContentType::json())
         .status(StatusCode::NO_CONTENT)
         .finish());
 }
 
-pub fn categories_config(cfg: &mut web::ServiceConfig) {
+pub fn categories_config(cfg: &mut service_config::ServiceConfig) {
     cfg.service(categories_list);
     cfg.service(categories_get);
     cfg.service(categories_create);

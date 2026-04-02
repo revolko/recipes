@@ -2,8 +2,9 @@ use crate::models::recipe::Recipe;
 use crate::schema::{categories, recipe_category};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Queryable, Selectable, Serialize, Deserialize)]
+#[derive(Queryable, Selectable, ToSchema, Serialize, Deserialize)]
 #[diesel(table_name = categories)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(primary_key(name))]
@@ -11,13 +12,13 @@ pub struct Category {
     pub name: String,
 }
 
-#[derive(Insertable, Serialize, Deserialize)]
+#[derive(Insertable, ToSchema, Serialize, Deserialize)]
 #[diesel(table_name = categories)]
 pub struct NewCategory {
     pub name: String,
 }
 
-#[derive(AsChangeset, Deserialize)]
+#[derive(AsChangeset, ToSchema, Deserialize)]
 #[diesel(table_name = categories)]
 pub struct ChangeCategory {
     pub name: Option<String>,

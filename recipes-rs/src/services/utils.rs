@@ -4,10 +4,11 @@ use diesel_async::{
     AsyncPgConnection,
 };
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use super::errors;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct ResponseBodyVec<T> {
     pub result: T,
 }

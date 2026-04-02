@@ -14,3 +14,6 @@ actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 derive_more = { version = "1.0.0", features = ["display", "error"] }
+utoipa = { version = "5", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
+utoipa-actix-web = { version = "0.1" }

@@ -5,6 +5,8 @@ use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use dotenvy::dotenv;
 use std::{env, io};
+use utoipa_actix_web::{scope, AppExt};
+use utoipa_swagger_ui::SwaggerUi;
 
 mod models {
     pub mod category;
@@ -29,11 +31,18 @@ async fn main() -> io::Result<()> {
         .expect("Unable to build a connection pool");
 
     HttpServer::new(move || {
-        App::new().app_data(web::Data::new(pool.clone())).service(
-            web::scope(API_PREFIX)
-                .service(web::scope("/recipes").configure(recipes_config))
-                .service(web::scope("/categories").configure(categories_config)),
-        )
+        App::new()
+            .into_utoipa_app()
+            .app_data(web::Data::new(pool.clone()))
+            .service(
+                scope(API_PREFIX)
+                    .service(scope("/recipes").configure(recipes_config))
+                    .service(scope("/categories").configure(categories_config)),
+            )
+            .openapi_service(|api| {
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api/openapi.json", api)
+            })
+            .into_app()
     })
     .bind(("0.0.0.0", 8080))?
     .run()
