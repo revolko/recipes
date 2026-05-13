@@ -1,6 +1,6 @@
 pub mod schema;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use dotenvy::dotenv;
@@ -22,6 +22,7 @@ const API_PREFIX: &str = "/api/v1";
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool_manager =
@@ -32,6 +33,7 @@ async fn main() -> io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(Logger::default())
             .into_utoipa_app()
             .app_data(web::Data::new(pool.clone()))
             .service(

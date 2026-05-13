@@ -17,3 +17,4 @@ derive_more = { version = "1.0.0", features = ["display", "error"] }
 utoipa = { version = "5", features = ["actix_extras"] }
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 utoipa-actix-web = { version = "0.1" }
+env_logger = "0.11"
