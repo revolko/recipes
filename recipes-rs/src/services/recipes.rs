@@ -42,6 +42,12 @@ struct ChangeRecipeBody {
     categories: Option<Vec<String>>,
 }
 
+#[derive(Deserialize)]
+struct ListRecipesQuery {
+    category: Option<String>,
+    cuisine: Option<String>,
+}
+
 async fn get_categories(
     recipe: &Recipe,
     connection: &mut Object<AsyncPgConnection>,
@@ -64,15 +70,31 @@ async fn get_categories(
 #[get("")]
 pub async fn recipes_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
+    query_params: web::Query<ListRecipesQuery>,
 ) -> actix_web::Result<impl Responder> {
     // TODO: logging
     let mut connection = utils::get_connection(pool).await?;
 
-    let recipes_db = recipes::table
-        .select(Recipe::as_select())
+    let mut recipes_db = recipes::table.into_boxed();
+    if let Some(category) = &query_params.category {
+        let category_recipes: Vec<i32> = recipe_category::table
+            .filter(recipe_category::category_name.eq(category))
+            .load(&mut connection)
+            .await
+            .map_err(|_e| errors::ApiErrors::NotFound)?
+            .iter()
+            .map(|rec_cat: &RecipeCategory| rec_cat.recipe_id)
+            .collect();
+        recipes_db = recipes_db.filter(recipes::id.eq_any(category_recipes));
+    }
+    if let Some(cuisine) = &query_params.cuisine {
+        recipes_db = recipes_db.filter(recipes::cuisine.eq(cuisine))
+    }
+
+    let recipes_vec = recipes_db
         .load(&mut connection)
-        .await;
-    let recipes_vec = recipes_db.map_err(|_e| errors::ApiErrors::InternalError)?;
+        .await
+        .map_err(|_e| errors::ApiErrors::InternalError)?;
 
     let mut recipes_full: Vec<RecipeBody> = vec![];
     for recipe in recipes_vec {
