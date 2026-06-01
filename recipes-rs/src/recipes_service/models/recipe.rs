@@ -1,9 +1,9 @@
-use crate::schema::recipes;
-use diesel::{prelude::AsChangeset, Insertable, Queryable, Selectable};
+use crate::recipes_service::schema::recipes;
+use diesel::{prelude::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Queryable, Selectable, ToSchema, Serialize)]
+#[derive(Queryable, Selectable, Identifiable, ToSchema, Serialize)]
 #[diesel(table_name = recipes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Recipe {

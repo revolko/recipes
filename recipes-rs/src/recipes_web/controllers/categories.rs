@@ -3,33 +3,38 @@ use actix_web::{
     http::{header::ContentType, StatusCode},
     post, put, web, HttpResponse, Responder,
 };
-use diesel::prelude::*;
-use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
+use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection};
 use utoipa_actix_web::service_config;
 
 use crate::{
-    models::category::{Category, ChangeCategory, NewCategory},
-    schema::categories,
-    services::{errors, utils},
+    recipes_service::categories::{
+        create_category, delete_category, get_category, list_categories, update_category,
+    },
+    recipes_service::models::category::{Category, ChangeCategory, NewCategory},
+    recipes_web::{errors, utils},
 };
+
+use super::responses::json::CategoryResponse;
 
 #[utoipa::path(
     tag = "categories",
     responses(
-        (status = 200, description = "List categories", body = utils::ResponseBodyVec<Vec<Category>>)
+        (status = 200, description = "List categories", body = utils::ResponseBodyVec<Vec<CategoryResponse>>)
     )
 )]
 #[get("")]
 pub async fn categories_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
 ) -> actix_web::Result<impl Responder> {
-    let mut connection = utils::get_connection(pool).await?;
-
-    let db_result = categories::table
-        .select(Category::as_select())
-        .load(&mut connection)
-        .await;
-    let categories_vec = db_result.map_err(|_e| errors::ApiErrors::InternalError)?;
+    let categories_db = list_categories(pool.into_inner())
+        .await
+        .map_err(|_e| errors::ApiErrors::InternalError)?;
+    let categories_vec: Vec<CategoryResponse> = categories_db
+        .iter()
+        .map(|category| CategoryResponse {
+            name: category.name.clone(),
+        })
+        .collect();
 
     let response_body = utils::ResponseBodyVec {
         result: categories_vec,
@@ -45,7 +50,7 @@ pub async fn categories_list(
 #[utoipa::path(
     tag = "categories",
     responses(
-        (status = 200, description = "Get category", body = Category)
+        (status = 200, description = "Get category", body = CategoryResponse)
     )
 )]
 #[get("/{name}")]
@@ -53,16 +58,14 @@ pub async fn categories_get(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
-    use crate::schema::categories::dsl::*;
     let category_name = path.into_inner();
 
-    let mut connection = utils::get_connection(pool).await?;
-
-    let category: Category = categories
-        .find(category_name)
-        .first(&mut connection)
+    let category: Category = get_category(pool.into_inner(), category_name)
         .await
         .map_err(|_e| errors::ApiErrors::NotFound)?;
+    let category = CategoryResponse {
+        name: category.name,
+    };
     let response_serialized =
         serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
 
@@ -74,7 +77,7 @@ pub async fn categories_get(
 #[utoipa::path(
     tag = "categories",
     responses(
-        (status = 201, description = "Create category", body = Category)
+        (status = 201, description = "Create category", body = CategoryResponse)
     )
 )]
 #[post("")]
@@ -82,16 +85,12 @@ pub async fn categories_create(
     pool: web::Data<Pool<AsyncPgConnection>>,
     category_body: web::Json<NewCategory>,
 ) -> actix_web::Result<impl Responder> {
-    use crate::schema::categories::dsl::*;
-
-    let mut connection = utils::get_connection(pool).await?;
-
-    let category: Category = diesel::insert_into(categories)
-        .values(&category_body.into_inner())
-        .returning(Category::as_returning())
-        .get_result(&mut connection)
+    let category = create_category(pool.into_inner(), &category_body.into_inner())
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
+    let category = CategoryResponse {
+        name: category.name,
+    };
     let response_serialized =
         serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
 
@@ -104,7 +103,7 @@ pub async fn categories_create(
 #[utoipa::path(
     tag = "categories",
     responses(
-        (status = 200, description = "Alter category", body = Category)
+        (status = 200, description = "Alter category", body = CategoryResponse)
     )
 )]
 #[put("/{name}")]
@@ -113,18 +112,15 @@ pub async fn categories_change(
     path: web::Path<String>,
     category_changeset: web::Json<ChangeCategory>,
 ) -> actix_web::Result<impl Responder> {
-    use crate::schema::categories::dsl::*;
     let category_name = path.into_inner();
     let category_changeset = category_changeset.into_inner();
 
-    let mut connection = utils::get_connection(pool).await?;
-
-    let category: Category = diesel::update(categories.find(category_name))
-        .set(&category_changeset)
-        .returning(Category::as_returning())
-        .get_result(&mut connection)
+    let category: Category = update_category(pool.into_inner(), category_name, &category_changeset)
         .await
         .map_err(|_e| errors::ApiErrors::InternalError)?;
+    let category = CategoryResponse {
+        name: category.name,
+    };
     let response_serialized =
         serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
 
@@ -133,7 +129,6 @@ pub async fn categories_change(
         .body(response_serialized));
 }
 
-// TODO: don't let category to be deleted when referenced by recipe
 #[utoipa::path(
     tag = "categories",
     responses(
@@ -145,21 +140,11 @@ pub async fn categories_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
-    use crate::schema::categories::dsl::*;
-    use crate::schema::recipe_category::dsl::*;
-    let category_name_path = path.into_inner();
+    let category_name = path.into_inner();
 
-    let mut connection = utils::get_connection(pool).await?;
-
-    diesel::delete(recipe_category.filter(category_name.eq(&category_name_path)))
-        .execute(&mut connection)
+    delete_category(pool.into_inner(), category_name)
         .await
-        .map_err(|_e| errors::ApiErrors::InternalError)?;
-
-    diesel::delete(categories.find(category_name_path))
-        .execute(&mut connection)
-        .await
-        .map_err(|_e| errors::ApiErrors::InternalError)?;
+        .map_err(|_e| errors::ApiErrors::BadRequest)?;
 
     return Ok(HttpResponse::NoContent()
         .content_type(ContentType::json())

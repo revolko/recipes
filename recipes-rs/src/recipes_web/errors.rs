@@ -13,6 +13,8 @@ pub enum ApiErrors {
     DatabaseConnectionError,
     #[display("Not found")]
     NotFound,
+    #[display("Bad request")]
+    BadRequest,
 }
 
 impl error::ResponseError for ApiErrors {
@@ -22,6 +24,7 @@ impl error::ResponseError for ApiErrors {
             ApiErrors::InternalError => println!("Internal Error"),
             ApiErrors::DatabaseConnectionError => println!("DatabaseConnectionError"),
             ApiErrors::NotFound => println!("Not found"),
+            ApiErrors::BadRequest => println!("Bad reqeust"),
         }
         HttpResponse::build(self.status_code())
             .insert_header(ContentType::html())
@@ -33,6 +36,7 @@ impl error::ResponseError for ApiErrors {
             ApiErrors::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrors::DatabaseConnectionError => StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrors::NotFound => StatusCode::NOT_FOUND,
+            ApiErrors::BadRequest => StatusCode::BAD_REQUEST,
         }
     }
 }

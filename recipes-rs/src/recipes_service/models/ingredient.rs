@@ -1,7 +1,7 @@
 use std::i16;
 
-use crate::models::recipe::Recipe;
-use crate::schema::{ingredients, recipe_ingredient};
+use crate::recipes_service::models::recipe::Recipe;
+use crate::recipes_service::schema::{ingredients, recipe_ingredient};
 use bigdecimal::BigDecimal;
 use diesel::{Associations, Identifiable, Insertable, Queryable, Selectable};
 
@@ -31,4 +31,12 @@ pub struct RecipeIngredient {
     pub part: i16,
     pub quantity: BigDecimal,
     pub unit: String,
+}
+
+/// helper to build RecipeIngredient insert
+pub struct NewRecipeIngredient<'a> {
+    pub name: &'a str,
+    pub part: i16,
+    pub quantity: i32,
+    pub unit: &'a str,
 }

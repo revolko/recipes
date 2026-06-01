@@ -1,4 +1,5 @@
-pub mod schema;
+mod recipes_service;
+mod recipes_web;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use diesel_async::pooled_connection::deadpool::Pool;
@@ -8,14 +9,7 @@ use std::{env, io};
 use utoipa_actix_web::{scope, AppExt};
 use utoipa_swagger_ui::SwaggerUi;
 
-mod models {
-    pub mod category;
-    pub mod ingredient;
-    pub mod recipe;
-}
-
-mod services;
-use services::{categories::categories_config, recipes::recipes_config};
+use recipes_web::controllers::{categories::categories_config, recipes::recipes_config};
 
 const API_PREFIX: &str = "/api/v1";
 
