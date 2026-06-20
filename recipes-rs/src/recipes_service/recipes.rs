@@ -1,8 +1,8 @@
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
-use std::error;
 use std::sync::Arc;
 
+use super::errors::ServiceError;
 use super::models::category::{Category, RecipeCategory};
 use super::models::ingredient::{Ingredient, NewIngredient, NewRecipeIngredient, RecipeIngredient};
 use super::models::recipe::{ChangeRecipe, NewRecipe, Recipe};
@@ -17,7 +17,7 @@ pub async fn list_recipes(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     category_fitler: &Option<String>,
     cuisine_filter: &Option<String>,
-) -> Result<Vec<(Recipe, Vec<Category>)>, Box<dyn error::Error>> {
+) -> Result<Vec<(Recipe, Vec<Category>)>, ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     let mut all_recipes = recipes::table.select(Recipe::as_select()).into_boxed();
 
@@ -60,7 +60,7 @@ pub async fn list_recipes(
 pub async fn get_recipe(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     recipe_id: &i32,
-) -> Result<(Recipe, Vec<Category>), Box<dyn error::Error>> {
+) -> Result<(Recipe, Vec<Category>), ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     let recipe = recipes::table
         .select(Recipe::as_select())
@@ -82,7 +82,7 @@ pub async fn create_recipe(
     new_recipe: &NewRecipe,
     categories_names: &Vec<String>,
     rec_ings: &Vec<NewRecipeIngredient<'_>>,
-) -> Result<(Recipe, Vec<Category>), Box<dyn error::Error>> {
+) -> Result<(Recipe, Vec<Category>), ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     // create a recipe, associate it to categories and create and associate ingredients
     // if category does not exists -- fail
@@ -155,7 +155,7 @@ pub async fn update_recipe(
     recipe_id: &i32,
     change_recipe: &ChangeRecipe,
     rec_cats: &Option<Vec<String>>,
-) -> Result<(Recipe, Vec<Category>), Box<dyn error::Error>> {
+) -> Result<(Recipe, Vec<Category>), ServiceError> {
     // add/remove ingredient associations
     let mut connection = get_connection(db_pool).await?;
     return connection
@@ -201,7 +201,7 @@ pub async fn update_recipe(
 pub async fn delete_recipe(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     recipe_id: &i32,
-) -> Result<(), Box<dyn error::Error>> {
+) -> Result<(), ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     return connection
         .build_transaction()

@@ -30,7 +30,7 @@ use super::{
 pub async fn recipes_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
     query_params: web::Query<ListRecipesQuery>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     // TODO: logging
     let recipes_categories = list_recipes(
         pool.into_inner(),
@@ -57,8 +57,7 @@ pub async fn recipes_list(
     let response_body = utils::ResponseBodyVec {
         result: recipes_full,
     };
-    let response_serialized =
-        serde_json::to_string(&response_body).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&response_body)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -76,13 +75,10 @@ pub async fn recipes_list(
 pub async fn recipes_get(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<i32>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let recipe_id = path.into_inner();
 
-    // TODO: implement From for ApiErrors -- would not need map_err always
-    let (recipe, categories) = get_recipe(pool.into_inner(), &recipe_id)
-        .await
-        .map_err(|_e| errors::ApiErrors::NotFound)?;
+    let (recipe, categories) = get_recipe(pool.into_inner(), &recipe_id).await?;
 
     let response = RecipeResponse {
         id: recipe.id,
@@ -96,8 +92,7 @@ pub async fn recipes_get(
         categories: categories.into_iter().map(|c| c.into()).collect(),
     };
 
-    let response_serialized =
-        serde_json::to_string(&response).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&response)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -114,7 +109,7 @@ pub async fn recipes_get(
 pub async fn recipes_create(
     pool: web::Data<Pool<AsyncPgConnection>>,
     recipe_body: web::Json<NewRecipe>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let recipe_body = recipe_body.into_inner();
     let new_recipe = NewRecipeInsert {
         name: recipe_body.name,
@@ -143,8 +138,7 @@ pub async fn recipes_create(
         &recipe_body.categories,
         &rec_ings,
     )
-    .await
-    .map_err(|_e| errors::ApiErrors::InternalError)?;
+    .await?;
 
     let response = RecipeResponse {
         id: recipe.id,
@@ -158,8 +152,7 @@ pub async fn recipes_create(
         categories: categories.into_iter().map(|c| c.into()).collect(),
     };
 
-    let response_serialized =
-        serde_json::to_string(&response).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&response)?;
 
     return Ok(HttpResponse::Created()
         .content_type(ContentType::json())
@@ -177,7 +170,7 @@ pub async fn recipes_change(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<i32>,
     recipe_changeset_body: web::Json<ChangeRecipe>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     // TODO: enable update of ingredients
     let recipe_id = path.into_inner();
     let recipe_changeset_body = recipe_changeset_body.into_inner();
@@ -197,8 +190,7 @@ pub async fn recipes_change(
         &recipe_changeset,
         &recipe_changeset_body.categories,
     )
-    .await
-    .map_err(|_e| errors::ApiErrors::InternalError)?;
+    .await?;
     let recipe_body = RecipeResponse {
         id: recipe.id,
         name: recipe.name,
@@ -210,8 +202,7 @@ pub async fn recipes_change(
         difficulty: recipe.difficulty,
         categories: categories_vec.into_iter().map(|c| c.into()).collect(),
     };
-    let response_serialized =
-        serde_json::to_string(&recipe_body).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&recipe_body)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -228,12 +219,10 @@ pub async fn recipes_change(
 pub async fn recipes_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<i32>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let recipe_id = path.into_inner();
 
-    delete_recipe(pool.into_inner(), &recipe_id)
-        .await
-        .map_err(|_e| errors::ApiErrors::InternalError)?;
+    delete_recipe(pool.into_inner(), &recipe_id).await?;
 
     return Ok(HttpResponse::NoContent()
         .content_type(ContentType::json())

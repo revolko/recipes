@@ -1,15 +1,15 @@
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
-use std::error;
 use std::sync::Arc;
 
+use super::errors::ServiceError;
 use super::models::category::{Category, ChangeCategory, NewCategory, RecipeCategory};
 use super::schema::{categories, recipe_category};
 use super::utils::get_connection;
 
 pub async fn list_categories(
     db_pool: Arc<Pool<AsyncPgConnection>>,
-) -> Result<Vec<Category>, Box<dyn error::Error>> {
+) -> Result<Vec<Category>, ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     return Ok(categories::table
         .select(Category::as_select())
@@ -20,7 +20,7 @@ pub async fn list_categories(
 pub async fn get_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     name: String,
-) -> Result<Category, Box<dyn error::Error>> {
+) -> Result<Category, ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     return Ok(categories::table.find(name).first(&mut connection).await?);
 }
@@ -28,7 +28,7 @@ pub async fn get_category(
 pub async fn create_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     new_category: &NewCategory,
-) -> Result<Category, Box<dyn error::Error>> {
+) -> Result<Category, ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     return Ok(diesel::insert_into(categories::table)
         .values(new_category)
@@ -41,7 +41,7 @@ pub async fn update_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     name: String,
     change_category: &ChangeCategory,
-) -> Result<Category, Box<dyn error::Error>> {
+) -> Result<Category, ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     return Ok(diesel::update(categories::table.find(name))
         .set(change_category)
@@ -53,7 +53,7 @@ pub async fn update_category(
 pub async fn delete_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     name: String,
-) -> Result<(), Box<dyn error::Error>> {
+) -> Result<(), ServiceError> {
     let mut connection = get_connection(db_pool).await?;
     // TODO: return custom error upon rollback
     connection

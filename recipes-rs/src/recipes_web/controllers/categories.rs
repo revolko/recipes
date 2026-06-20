@@ -25,10 +25,8 @@ use super::responses::json::CategoryResponse;
 #[get("")]
 pub async fn categories_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
-) -> actix_web::Result<impl Responder> {
-    let categories_db = list_categories(pool.into_inner())
-        .await
-        .map_err(|_e| errors::ApiErrors::InternalError)?;
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
+    let categories_db = list_categories(pool.into_inner()).await?;
     let categories_vec: Vec<CategoryResponse> = categories_db
         .iter()
         .map(|category| CategoryResponse {
@@ -39,8 +37,7 @@ pub async fn categories_list(
     let response_body = utils::ResponseBodyVec {
         result: categories_vec,
     };
-    let response_serialized =
-        serde_json::to_string(&response_body).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&response_body)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -57,17 +54,14 @@ pub async fn categories_list(
 pub async fn categories_get(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let category_name = path.into_inner();
 
-    let category: Category = get_category(pool.into_inner(), category_name)
-        .await
-        .map_err(|_e| errors::ApiErrors::NotFound)?;
+    let category: Category = get_category(pool.into_inner(), category_name).await?;
     let category = CategoryResponse {
         name: category.name,
     };
-    let response_serialized =
-        serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&category)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -84,15 +78,12 @@ pub async fn categories_get(
 pub async fn categories_create(
     pool: web::Data<Pool<AsyncPgConnection>>,
     category_body: web::Json<NewCategory>,
-) -> actix_web::Result<impl Responder> {
-    let category = create_category(pool.into_inner(), &category_body.into_inner())
-        .await
-        .map_err(|_e| errors::ApiErrors::InternalError)?;
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
+    let category = create_category(pool.into_inner(), &category_body.into_inner()).await?;
     let category = CategoryResponse {
         name: category.name,
     };
-    let response_serialized =
-        serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&category)?;
 
     return Ok(HttpResponse::Created()
         .content_type(ContentType::json())
@@ -111,18 +102,16 @@ pub async fn categories_change(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
     category_changeset: web::Json<ChangeCategory>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let category_name = path.into_inner();
     let category_changeset = category_changeset.into_inner();
 
-    let category: Category = update_category(pool.into_inner(), category_name, &category_changeset)
-        .await
-        .map_err(|_e| errors::ApiErrors::InternalError)?;
+    let category: Category =
+        update_category(pool.into_inner(), category_name, &category_changeset).await?;
     let category = CategoryResponse {
         name: category.name,
     };
-    let response_serialized =
-        serde_json::to_string(&category).map_err(|_e| errors::ApiErrors::InternalError)?;
+    let response_serialized = serde_json::to_string(&category)?;
 
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -139,12 +128,10 @@ pub async fn categories_change(
 pub async fn categories_delete(
     pool: web::Data<Pool<AsyncPgConnection>>,
     path: web::Path<String>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let category_name = path.into_inner();
 
-    delete_category(pool.into_inner(), category_name)
-        .await
-        .map_err(|_e| errors::ApiErrors::BadRequest)?;
+    delete_category(pool.into_inner(), category_name).await?;
 
     return Ok(HttpResponse::NoContent()
         .content_type(ContentType::json())
