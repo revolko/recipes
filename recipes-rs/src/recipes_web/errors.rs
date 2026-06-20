@@ -11,8 +11,6 @@ use diesel::result::Error as DieselError;
 pub enum ApiErrors {
     #[display("An internal error occurred. Please try again later.")]
     InternalError,
-    #[display("An internal error occurred. Please try again later.")]
-    DatabaseConnectionError,
     #[display("Not found")]
     NotFound,
     #[display("Bad request")]
@@ -29,7 +27,6 @@ impl error::ResponseError for ApiErrors {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match *self {
             ApiErrors::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiErrors::DatabaseConnectionError => StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrors::NotFound => StatusCode::NOT_FOUND,
             ApiErrors::BadRequest => StatusCode::BAD_REQUEST,
         }
