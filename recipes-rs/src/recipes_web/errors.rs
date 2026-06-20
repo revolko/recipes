@@ -21,13 +21,6 @@ pub enum ApiErrors {
 
 impl error::ResponseError for ApiErrors {
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        match *self {
-            // TODO maybe logging here?
-            ApiErrors::InternalError => println!("Internal Error"),
-            ApiErrors::DatabaseConnectionError => println!("DatabaseConnectionError"),
-            ApiErrors::NotFound => println!("Not found"),
-            ApiErrors::BadRequest => println!("Bad reqeust"),
-        }
         HttpResponse::build(self.status_code())
             .insert_header(ContentType::html())
             .body(self.to_string())
@@ -56,6 +49,7 @@ impl From<DieselError> for ApiErrors {
     fn from(diesel_error: DieselError) -> Self {
         match diesel_error {
             DieselError::NotFound => Self::NotFound,
+            DieselError::DatabaseError(_kind, _error_info) => Self::BadRequest,
             _ => Self::InternalError,
         }
     }
