@@ -7,6 +7,8 @@ use utoipa::ToSchema;
 pub struct ListRecipesQuery {
     pub category: Option<String>,
     pub cuisine: Option<String>,
+    pub min_duration: Option<i32>,
+    pub max_duration: Option<i32>,
 }
 
 // POST

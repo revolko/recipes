@@ -18,6 +18,8 @@ pub async fn list_recipes(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     category_fitler: &Option<String>,
     cuisine_filter: &Option<String>,
+    min_duration: &Option<i32>,
+    max_duration: &Option<i32>,
 ) -> Result<Vec<(Recipe, Vec<Category>)>, ServiceError> {
     info!("Listing recipes");
     let mut connection = get_connection(db_pool).await?;
@@ -36,6 +38,14 @@ pub async fn list_recipes(
             .await?;
 
         all_recipes = all_recipes.filter(recipes::id.eq_any(filtered_recipe_ids));
+    }
+    if let Some(min_duration) = min_duration {
+        debug!(min_duration; "Filtering on minimum duration");
+        all_recipes = all_recipes.filter(recipes::duration_min.ge(min_duration));
+    }
+    if let Some(max_duration) = max_duration {
+        debug!(max_duration; "Filtering on maximum duration");
+        all_recipes = all_recipes.filter(recipes::duration_min.le(max_duration));
     }
     let all_recipes = all_recipes.load(&mut connection).await?;
 
