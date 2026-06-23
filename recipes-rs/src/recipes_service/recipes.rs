@@ -1,5 +1,6 @@
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
+use log::{debug, info};
 use std::sync::Arc;
 
 use super::errors::ServiceError;
@@ -18,13 +19,16 @@ pub async fn list_recipes(
     category_fitler: &Option<String>,
     cuisine_filter: &Option<String>,
 ) -> Result<Vec<(Recipe, Vec<Category>)>, ServiceError> {
+    info!("Listing recipes");
     let mut connection = get_connection(db_pool).await?;
     let mut all_recipes = recipes::table.select(Recipe::as_select()).into_boxed();
 
     if let Some(cuisine) = cuisine_filter {
+        debug!(cuisine; "Filtering by cuisine");
         all_recipes = all_recipes.filter(recipes::cuisine.eq(cuisine));
     }
     if let Some(category) = category_fitler {
+        debug!(category; "Filtering by category");
         let filtered_recipe_ids: Vec<i32> = recipe_category::table
             .select(recipe_category::recipe_id)
             .filter(recipe_category::category_name.eq(category))
@@ -61,6 +65,7 @@ pub async fn get_recipe(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     recipe_id: &i32,
 ) -> Result<(Recipe, Vec<Category>), ServiceError> {
+    info!(recipe_id; "Getting recipe");
     let mut connection = get_connection(db_pool).await?;
     let recipe = recipes::table
         .select(Recipe::as_select())
@@ -83,6 +88,7 @@ pub async fn create_recipe(
     categories_names: &Vec<String>,
     rec_ings: &Vec<NewRecipeIngredient<'_>>,
 ) -> Result<(Recipe, Vec<Category>), ServiceError> {
+    info!(new_recipe:serde, categories:serde = categories_names, ingredients: serde = rec_ings; "Creating recipe");
     let mut connection = get_connection(db_pool).await?;
     // create a recipe, associate it to categories and create and associate ingredients
     // if category does not exists -- fail
@@ -96,6 +102,7 @@ pub async fn create_recipe(
                     .returning(Recipe::as_returning())
                     .get_result(&mut connection)
                     .await?;
+                debug!(recipe:serde; "Created recipe");
 
                 let mut rec_ings_assoc: Vec<RecipeIngredient> = vec![];
                 for rec_ing in rec_ings {
@@ -107,8 +114,12 @@ pub async fn create_recipe(
                         .await
                         .optional()?
                     {
-                        Some(ingredient) => ingredient,
+                        Some(ingredient) => {
+                            debug!(ingredient:serde; "Created ingredient");
+                            ingredient
+                        }
                         None => {
+                            debug!(ingredient = rec_ing.name; "Ingredient already exists");
                             ingredients::table
                                 .filter(ingredients::name.eq(rec_ing.name))
                                 .select(Ingredient::as_select())
@@ -142,6 +153,7 @@ pub async fn create_recipe(
                     .values(&rec_cats)
                     .execute(&mut connection)
                     .await?;
+                debug!(recipe_categories:serde = rec_cats; "Associated categories with recipe");
 
                 let categories = get_recipe_categories(&mut connection, &recipe).await?;
                 return Ok((recipe, categories));
@@ -157,6 +169,7 @@ pub async fn update_recipe(
     rec_cats: &Option<Vec<String>>,
 ) -> Result<(Recipe, Vec<Category>), ServiceError> {
     // add/remove ingredient associations
+    info!(recipe_id; "Changing recipe");
     let mut connection = get_connection(db_pool).await?;
     return connection
         .build_transaction()
@@ -167,8 +180,10 @@ pub async fn update_recipe(
                     .returning(Recipe::as_returning())
                     .get_result(&mut connection)
                     .await?;
+                debug!(recipe:serde; "Selected recipe");
 
                 if let Some(rec_cats) = rec_cats {
+                    debug!(categories:serde = rec_cats; "Updating categories");
                     // remove rec_cats that are not present in categories and create new ones
                     diesel::delete(
                         RecipeCategory::belonging_to(&recipe)
@@ -202,6 +217,7 @@ pub async fn delete_recipe(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     recipe_id: &i32,
 ) -> Result<(), ServiceError> {
+    info!(recipe_id; "Deleting recipe");
     let mut connection = get_connection(db_pool).await?;
     return connection
         .build_transaction()
@@ -212,16 +228,19 @@ pub async fn delete_recipe(
                 )
                 .execute(&mut connection)
                 .await?;
+                debug!("Removed category associations");
 
                 diesel::delete(
                     recipe_ingredient::table.filter(recipe_ingredient::recipe_id.eq(&recipe_id)),
                 )
                 .execute(&mut connection)
                 .await?;
+                debug!("Removed ingredient associations");
 
                 diesel::delete(recipes::table.find(&recipe_id))
                     .execute(&mut connection)
                     .await?;
+                debug!("Removed recipe");
 
                 return Ok(());
             })

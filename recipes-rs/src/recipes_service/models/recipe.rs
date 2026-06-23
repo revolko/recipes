@@ -17,7 +17,7 @@ pub struct Recipe {
     pub difficulty: i32,
 }
 
-#[derive(Insertable, ToSchema, Deserialize)]
+#[derive(Insertable, ToSchema, Serialize, Deserialize)]
 #[diesel(table_name = recipes)]
 pub struct NewRecipe {
     pub name: String,

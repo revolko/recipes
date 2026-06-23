@@ -24,7 +24,7 @@ pub struct ChangeCategory {
     pub name: Option<String>,
 }
 
-#[derive(Identifiable, Queryable, Selectable, Associations, Insertable, Debug)]
+#[derive(Identifiable, Queryable, Selectable, Associations, Insertable, Debug, Serialize)]
 #[diesel(table_name = recipe_category)]
 #[diesel(belongs_to(Recipe))]
 #[diesel(belongs_to(Category, foreign_key = category_name))]

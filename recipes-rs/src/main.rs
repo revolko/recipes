@@ -6,6 +6,7 @@ use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use dotenvy::dotenv;
 use std::{env, io};
+use structured_logger::{json::new_writer, Builder};
 use utoipa_actix_web::{scope, AppExt};
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -16,7 +17,9 @@ const API_PREFIX: &str = "/api/v1";
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    Builder::with_level("info")
+        .with_target_writer("*", new_writer(io::stdout()))
+        .init();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool_manager =

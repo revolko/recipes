@@ -1,5 +1,6 @@
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
+use log::{debug, info};
 use std::sync::Arc;
 
 use super::errors::ServiceError;
@@ -10,6 +11,7 @@ use super::utils::get_connection;
 pub async fn list_categories(
     db_pool: Arc<Pool<AsyncPgConnection>>,
 ) -> Result<Vec<Category>, ServiceError> {
+    info!("Listing categories");
     let mut connection = get_connection(db_pool).await?;
     return Ok(categories::table
         .select(Category::as_select())
@@ -21,6 +23,7 @@ pub async fn get_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     name: String,
 ) -> Result<Category, ServiceError> {
+    info!(category = name; "Getting category");
     let mut connection = get_connection(db_pool).await?;
     return Ok(categories::table.find(name).first(&mut connection).await?);
 }
@@ -29,6 +32,7 @@ pub async fn create_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     new_category: &NewCategory,
 ) -> Result<Category, ServiceError> {
+    info!(category:serde = new_category; "Creating category");
     let mut connection = get_connection(db_pool).await?;
     return Ok(diesel::insert_into(categories::table)
         .values(new_category)
@@ -42,6 +46,7 @@ pub async fn update_category(
     name: String,
     change_category: &ChangeCategory,
 ) -> Result<Category, ServiceError> {
+    info!(category = name; "Changing category");
     let mut connection = get_connection(db_pool).await?;
     return Ok(diesel::update(categories::table.find(name))
         .set(change_category)
@@ -54,6 +59,7 @@ pub async fn delete_category(
     db_pool: Arc<Pool<AsyncPgConnection>>,
     name: String,
 ) -> Result<(), ServiceError> {
+    info!(category = name; "Deleting category");
     let mut connection = get_connection(db_pool).await?;
     // TODO: return custom error upon rollback
     connection
@@ -67,6 +73,7 @@ pub async fn delete_category(
                 diesel::delete(categories::table.find(name))
                     .execute(&mut connection)
                     .await?;
+                debug!("Removed category");
 
                 return Ok(());
             })

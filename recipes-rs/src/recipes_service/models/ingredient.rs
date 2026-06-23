@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::i16;
 
 use crate::recipes_service::models::recipe::Recipe;
@@ -5,7 +6,7 @@ use crate::recipes_service::schema::{ingredients, recipe_ingredient};
 use bigdecimal::BigDecimal;
 use diesel::{Associations, Identifiable, Insertable, Queryable, Selectable};
 
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Serialize)]
 #[diesel(table_name = ingredients)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Ingredient {
@@ -34,6 +35,7 @@ pub struct RecipeIngredient {
 }
 
 /// helper to build RecipeIngredient insert
+#[derive(Serialize)]
 pub struct NewRecipeIngredient<'a> {
     pub name: &'a str,
     pub part: i16,
