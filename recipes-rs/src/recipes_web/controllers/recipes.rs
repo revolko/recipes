@@ -36,6 +36,8 @@ pub async fn recipes_list(
         pool.into_inner(),
         &query_params.category,
         &query_params.cuisine,
+        &query_params.min_duration,
+        &query_params.max_duration,
     )
     .await?;
 
