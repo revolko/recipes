@@ -7,6 +7,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    images (id) {
+        id -> Int4,
+        bytes -> Bytea,
+        #[sql_name = "type"]
+        type_ -> Varchar,
+        recipe_id -> Int4,
+    }
+}
+
+diesel::table! {
     ingredients (id) {
         id -> Int4,
         name -> Varchar,
@@ -43,6 +53,7 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(images -> recipes (recipe_id));
 diesel::joinable!(recipe_category -> categories (category_name));
 diesel::joinable!(recipe_category -> recipes (recipe_id));
 diesel::joinable!(recipe_ingredient -> ingredients (ingredient_id));
@@ -50,6 +61,7 @@ diesel::joinable!(recipe_ingredient -> recipes (recipe_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     categories,
+    images,
     ingredients,
     recipe_category,
     recipe_ingredient,
