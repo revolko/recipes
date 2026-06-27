@@ -57,3 +57,15 @@ impl From<serde_json::Error> for ApiErrors {
         Self::InternalError
     }
 }
+
+impl From<std::io::Error> for ApiErrors {
+    fn from(_std_error: std::io::Error) -> Self {
+        Self::InternalError
+    }
+}
+
+impl From<actix_web::error::BlockingError> for ApiErrors {
+    fn from(_blocking_error: actix_web::error::BlockingError) -> Self {
+        Self::InternalError
+    }
+}
