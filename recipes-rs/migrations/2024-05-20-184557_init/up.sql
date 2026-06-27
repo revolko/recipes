@@ -19,14 +19,14 @@ CREATE TABLE ingredients (
 );
 
 CREATE TABLE recipe_category (
-    recipe_id SERIAL REFERENCES recipes(id),
+    recipe_id INTEGER NOT NULL REFERENCES recipes(id),
     category_name VARCHAR REFERENCES categories(name),
     PRIMARY KEY (recipe_id, category_name)
 );
 
 CREATE TABLE recipe_ingredient (
-    recipe_id SERIAL REFERENCES recipes(id),
-    ingredient_id SERIAL REFERENCES ingredients(id),
+    recipe_id INTEGER NOT NULL REFERENCES recipes(id),
+    ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),
     part SMALLINT NOT NULL,
     quantity NUMERIC(3) NOT NULL,
     unit VARCHAR NOT NULL,
