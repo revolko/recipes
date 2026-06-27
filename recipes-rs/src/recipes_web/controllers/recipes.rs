@@ -1,3 +1,4 @@
+use actix_multipart::form::MultipartForm;
 use actix_web::{
     delete, get,
     http::{header::ContentType, StatusCode},
@@ -11,12 +12,13 @@ use crate::recipes_service::models::{
     recipe::{ChangeRecipe as ChangeRecipeUpdate, NewRecipe as NewRecipeInsert, Recipe},
 };
 use crate::recipes_service::recipes::{
-    create_recipe, delete_recipe, get_recipe, list_recipes, update_recipe,
+    change_recipe_image, create_recipe, delete_recipe, get_recipe, get_recipe_image, list_recipes,
+    update_recipe,
 };
 use crate::recipes_web::{errors, utils};
 
 use super::{
-    requests::recipes::{ChangeRecipe, ListRecipesQuery, NewRecipe},
+    requests::recipes::{ChangeRecipe, ChangeRecipeImage, ListRecipesQuery, NewRecipe},
     responses::json::RecipeResponse,
 };
 
@@ -99,6 +101,26 @@ pub async fn recipes_get(
     return Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
         .body(response_serialized));
+}
+
+#[utoipa::path(
+    tag = "recipes",
+    responses(
+        (status = 200, description = "Get recipe image", content_type = "image/jpeg", body = Vec<u8>)
+    )
+)]
+#[get("/{id}/image")]
+pub async fn recipes_get_image(
+    pool: web::Data<Pool<AsyncPgConnection>>,
+    path: web::Path<i32>,
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
+    let recipe_id = path.into_inner();
+
+    let image = get_recipe_image(pool.into_inner(), &recipe_id).await?;
+
+    return Ok(HttpResponse::Ok()
+        .content_type(image.type_)
+        .body(image.bytes));
 }
 
 #[utoipa::path(
@@ -214,6 +236,43 @@ pub async fn recipes_change(
 #[utoipa::path(
     tag = "recipes",
     responses(
+        (status = 200, description = "Alter recipe image", content_type = "image/jpeg", body = Vec<u8>)
+    )
+)]
+#[put("/{id}/image")]
+pub async fn recipes_change_image(
+    pool: web::Data<Pool<AsyncPgConnection>>,
+    path: web::Path<i32>,
+    MultipartForm(form): MultipartForm<ChangeRecipeImage>,
+) -> actix_web::Result<impl Responder, errors::ApiErrors> {
+    let recipe_id = path.into_inner();
+
+    let file_type = match form.image.content_type {
+        Some(content_type) => content_type,
+        // content type must be specified by the client
+        None => return Err(errors::ApiErrors::BadRequest),
+    };
+    if file_type.type_() != mime::IMAGE {
+        // file is not image
+        return Err(errors::ApiErrors::BadRequest);
+    }
+    if file_type.subtype() == mime::SVG {
+        // don't allow SVG files --> Stored XSS vulnerability
+        return Err(errors::ApiErrors::BadRequest);
+    }
+
+    let image_bytes = web::block(move || std::fs::read(form.image.file.path())).await??;
+
+    change_recipe_image(pool.into_inner(), &recipe_id, &image_bytes, &file_type).await?;
+
+    return Ok(HttpResponse::Ok()
+        .content_type(file_type.essence_str())
+        .body(image_bytes));
+}
+
+#[utoipa::path(
+    tag = "recipes",
+    responses(
         (status = 204, description = "Delete recipe")
     )
 )]
@@ -235,7 +294,9 @@ pub async fn recipes_delete(
 pub fn recipes_config(cfg: &mut service_config::ServiceConfig) {
     cfg.service(recipes_list);
     cfg.service(recipes_get);
+    cfg.service(recipes_get_image);
     cfg.service(recipes_create);
     cfg.service(recipes_change);
+    cfg.service(recipes_change_image);
     cfg.service(recipes_delete);
 }

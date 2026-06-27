@@ -5,9 +5,11 @@ use std::sync::Arc;
 
 use super::errors::ServiceError;
 use super::models::category::{Category, RecipeCategory};
+use super::models::image::{Image, NewImage, UpdateImage};
 use super::models::ingredient::{Ingredient, NewIngredient, NewRecipeIngredient, RecipeIngredient};
 use super::models::recipe::{ChangeRecipe, NewRecipe, Recipe};
 use super::schema::categories;
+use super::schema::images;
 use super::schema::ingredients;
 use super::schema::recipe_category;
 use super::schema::recipe_ingredient;
@@ -90,6 +92,21 @@ pub async fn get_recipe(
         .await?;
 
     return Ok((recipe, categories));
+}
+
+pub async fn get_recipe_image(
+    db_pool: Arc<Pool<AsyncPgConnection>>,
+    recipe_id: &i32,
+) -> Result<Image, ServiceError> {
+    info!(recipe_id; "Getting recipe image");
+    let mut connection = get_connection(db_pool).await?;
+    let image = images::table
+        .filter(images::recipe_id.eq(recipe_id))
+        .select(Image::as_select())
+        .first(&mut connection)
+        .await?;
+
+    return Ok(image);
 }
 
 pub async fn create_recipe(
@@ -221,6 +238,39 @@ pub async fn update_recipe(
             })
         })
         .await;
+}
+
+pub async fn change_recipe_image(
+    db_pool: Arc<Pool<AsyncPgConnection>>,
+    recipe_id: &i32,
+    image_bytes: &'_ Vec<u8>,
+    image_type: &mime::Mime,
+) -> Result<(), ServiceError> {
+    info!(recipe_id; "Changing recipe image");
+    let mut connection = get_connection(db_pool).await?;
+    let recipe = recipes::table
+        .select(Recipe::as_select())
+        .find(recipe_id)
+        .first(&mut connection)
+        .await?;
+
+    diesel::insert_into(images::table)
+        .values(&NewImage {
+            recipe_id: recipe.id,
+            bytes: image_bytes,
+            type_: image_type.essence_str(),
+        })
+        .on_conflict(images::recipe_id)
+        .do_update()
+        .set(&UpdateImage {
+            bytes: image_bytes,
+            type_: image_type.essence_str(),
+        })
+        .execute(&mut connection)
+        .await?;
+    debug!(recipe_id; "Created/Updated recipe image");
+
+    return Ok(());
 }
 
 pub async fn delete_recipe(

@@ -22,3 +22,10 @@ pub struct NewImage<'a> {
     pub type_: &'a str,
     pub recipe_id: i32,
 }
+
+#[derive(AsChangeset)]
+#[diesel(table_name = images)]
+pub struct UpdateImage<'a> {
+    pub bytes: &'a Vec<u8>,
+    pub type_: &'a str,
+}

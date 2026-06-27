@@ -1,3 +1,4 @@
+use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
@@ -46,4 +47,10 @@ pub struct ChangeRecipe {
     pub portions: Option<i32>,
     pub difficulty: Option<i32>,
     pub categories: Option<Vec<String>>,
+}
+
+#[derive(MultipartForm)]
+pub struct ChangeRecipeImage {
+    #[multipart(limit = "20MB")] // TODO: not sure about the value
+    pub image: TempFile,
 }
