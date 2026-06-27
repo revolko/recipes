@@ -10,3 +10,6 @@ target/
 
 # dotenvy
 .env
+
+# custom http requests
+http/
