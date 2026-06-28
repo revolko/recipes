@@ -4,6 +4,7 @@ use actix_web::{
     http::{header::ContentType, StatusCode},
     post, put, web, HttpResponse, Responder,
 };
+use actix_web_lab::extract::Query;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection};
 use utoipa_actix_web::service_config;
 
@@ -31,7 +32,7 @@ use super::{
 #[get("")]
 pub async fn recipes_list(
     pool: web::Data<Pool<AsyncPgConnection>>,
-    query_params: web::Query<ListRecipesQuery>,
+    query_params: Query<ListRecipesQuery>,
 ) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     // TODO: logging
     let recipes_categories = list_recipes(
@@ -40,6 +41,7 @@ pub async fn recipes_list(
         &query_params.cuisine,
         &query_params.min_duration,
         &query_params.max_duration,
+        &query_params.ingredients,
     )
     .await?;
 

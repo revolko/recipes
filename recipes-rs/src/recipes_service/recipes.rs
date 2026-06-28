@@ -1,6 +1,8 @@
+use diesel::dsl;
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
 use log::{debug, info};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::errors::ServiceError;
@@ -22,6 +24,7 @@ pub async fn list_recipes(
     cuisine_filter: &Option<String>,
     min_duration: &Option<i32>,
     max_duration: &Option<i32>,
+    ingredients: &Option<Vec<String>>,
 ) -> Result<Vec<(Recipe, Vec<Category>)>, ServiceError> {
     info!("Listing recipes");
     let mut connection = get_connection(db_pool).await?;
@@ -48,6 +51,26 @@ pub async fn list_recipes(
     if let Some(max_duration) = max_duration {
         debug!(max_duration; "Filtering on maximum duration");
         all_recipes = all_recipes.filter(recipes::duration_min.le(max_duration));
+    }
+    if let Some(ingredients) = ingredients {
+        debug!(ingredients:serde; "Filter on ingredients");
+        let ingredients = ingredients.iter().collect::<HashSet<&String>>();
+        let ingredients_count = ingredients.len() as i64;
+
+        let recipe_ids: Vec<i32> = recipe_ingredient::table
+            .inner_join(ingredients::table)
+            .group_by(recipe_ingredient::recipe_id)
+            .select(recipe_ingredient::recipe_id)
+            .having(
+                dsl::count(ingredients::name)
+                    .aggregate_distinct()
+                    .eq(ingredients_count),
+            )
+            .filter(ingredients::name.eq_any(ingredients))
+            .load(&mut connection)
+            .await?;
+
+        all_recipes = all_recipes.filter(recipes::id.eq_any(recipe_ids));
     }
     let all_recipes = all_recipes.load(&mut connection).await?;
 
