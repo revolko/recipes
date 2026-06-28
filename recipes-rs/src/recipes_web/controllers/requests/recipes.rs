@@ -10,6 +10,8 @@ pub struct ListRecipesQuery {
     pub cuisine: Option<String>,
     pub min_duration: Option<i32>,
     pub max_duration: Option<i32>,
+    #[serde(rename = "ingredient")]
+    pub ingredients: Option<Vec<String>>,
 }
 
 // POST
