@@ -122,69 +122,67 @@ pub async fn create_recipe(
     // if ingredient does not exists -- create it
     return connection
         .build_transaction()
-        .run(|mut connection| {
-            Box::pin(async move {
-                let recipe = diesel::insert_into(recipes::table)
-                    .values(new_recipe)
-                    .returning(Recipe::as_returning())
+        .run(async |mut connection| {
+            let recipe = diesel::insert_into(recipes::table)
+                .values(new_recipe)
+                .returning(Recipe::as_returning())
+                .get_result(&mut connection)
+                .await?;
+            debug!(recipe:serde; "Created recipe");
+
+            let mut rec_ings_assoc: Vec<RecipeIngredient> = vec![];
+            for rec_ing in rec_ings {
+                let ing: Ingredient = match diesel::insert_into(ingredients::table)
+                    .values(&NewIngredient { name: rec_ing.name })
+                    .on_conflict_do_nothing()
+                    .returning(Ingredient::as_returning())
                     .get_result(&mut connection)
-                    .await?;
-                debug!(recipe:serde; "Created recipe");
+                    .await
+                    .optional()?
+                {
+                    Some(ingredient) => {
+                        debug!(ingredient:serde; "Created ingredient");
+                        ingredient
+                    }
+                    None => {
+                        debug!(ingredient = rec_ing.name; "Ingredient already exists");
+                        ingredients::table
+                            .filter(ingredients::name.eq(rec_ing.name))
+                            .select(Ingredient::as_select())
+                            .first(&mut connection)
+                            .await?
+                    }
+                };
 
-                let mut rec_ings_assoc: Vec<RecipeIngredient> = vec![];
-                for rec_ing in rec_ings {
-                    let ing: Ingredient = match diesel::insert_into(ingredients::table)
-                        .values(&NewIngredient { name: rec_ing.name })
-                        .on_conflict_do_nothing()
-                        .returning(Ingredient::as_returning())
-                        .get_result(&mut connection)
-                        .await
-                        .optional()?
-                    {
-                        Some(ingredient) => {
-                            debug!(ingredient:serde; "Created ingredient");
-                            ingredient
-                        }
-                        None => {
-                            debug!(ingredient = rec_ing.name; "Ingredient already exists");
-                            ingredients::table
-                                .filter(ingredients::name.eq(rec_ing.name))
-                                .select(Ingredient::as_select())
-                                .first(&mut connection)
-                                .await?
-                        }
-                    };
+                rec_ings_assoc.push(RecipeIngredient {
+                    recipe_id: recipe.id,
+                    ingredient_id: ing.id,
+                    part: rec_ing.part,
+                    quantity: rec_ing.quantity.into(),
+                    //TODO: can get rid of to string?
+                    unit: rec_ing.unit.to_string(),
+                });
+            }
+            diesel::insert_into(recipe_ingredient::table)
+                .values(&rec_ings_assoc)
+                .execute(&mut connection)
+                .await?;
 
-                    rec_ings_assoc.push(RecipeIngredient {
-                        recipe_id: recipe.id,
-                        ingredient_id: ing.id,
-                        part: rec_ing.part,
-                        quantity: rec_ing.quantity.into(),
-                        //TODO: can get rid of to string?
-                        unit: rec_ing.unit.to_string(),
-                    });
-                }
-                diesel::insert_into(recipe_ingredient::table)
-                    .values(&rec_ings_assoc)
-                    .execute(&mut connection)
-                    .await?;
+            let rec_cats: Vec<RecipeCategory> = categories_names
+                .iter()
+                .map(|category_name| RecipeCategory {
+                    recipe_id: recipe.id,
+                    category_name: category_name.to_string(),
+                })
+                .collect();
+            diesel::insert_into(recipe_category::table)
+                .values(&rec_cats)
+                .execute(&mut connection)
+                .await?;
+            debug!(recipe_categories:serde = rec_cats; "Associated categories with recipe");
 
-                let rec_cats: Vec<RecipeCategory> = categories_names
-                    .iter()
-                    .map(|category_name| RecipeCategory {
-                        recipe_id: recipe.id,
-                        category_name: category_name.to_string(),
-                    })
-                    .collect();
-                diesel::insert_into(recipe_category::table)
-                    .values(&rec_cats)
-                    .execute(&mut connection)
-                    .await?;
-                debug!(recipe_categories:serde = rec_cats; "Associated categories with recipe");
-
-                let categories = get_recipe_categories(&mut connection, &recipe).await?;
-                return Ok((recipe, categories));
-            })
+            let categories = get_recipe_categories(&mut connection, &recipe).await?;
+            return Ok((recipe, categories));
         })
         .await;
 }
@@ -200,42 +198,40 @@ pub async fn update_recipe(
     let mut connection = get_connection(db_pool).await?;
     return connection
         .build_transaction()
-        .run(|mut connection| {
-            Box::pin(async move {
-                let recipe = diesel::update(recipes::table.find(recipe_id))
-                    .set(change_recipe)
-                    .returning(Recipe::as_returning())
-                    .get_result(&mut connection)
-                    .await?;
-                debug!(recipe:serde; "Selected recipe");
+        .run(async |mut connection| {
+            let recipe = diesel::update(recipes::table.find(recipe_id))
+                .set(change_recipe)
+                .returning(Recipe::as_returning())
+                .get_result(&mut connection)
+                .await?;
+            debug!(recipe:serde; "Selected recipe");
 
-                if let Some(rec_cats) = rec_cats {
-                    debug!(categories:serde = rec_cats; "Updating categories");
-                    // remove rec_cats that are not present in categories and create new ones
-                    diesel::delete(
-                        RecipeCategory::belonging_to(&recipe)
-                            .filter(recipe_category::category_name.ne_all(rec_cats)),
-                    )
+            if let Some(rec_cats) = rec_cats {
+                debug!(categories:serde = rec_cats; "Updating categories");
+                // remove rec_cats that are not present in categories and create new ones
+                diesel::delete(
+                    RecipeCategory::belonging_to(&recipe)
+                        .filter(recipe_category::category_name.ne_all(rec_cats)),
+                )
+                .execute(&mut connection)
+                .await?;
+
+                let all_rec_cats: Vec<RecipeCategory> = rec_cats
+                    .into_iter()
+                    .map(|c| RecipeCategory {
+                        recipe_id: recipe.id,
+                        category_name: c.to_string(),
+                    })
+                    .collect();
+                diesel::insert_into(recipe_category::table)
+                    .values(&all_rec_cats)
+                    .on_conflict_do_nothing()
                     .execute(&mut connection)
                     .await?;
+            }
 
-                    let all_rec_cats: Vec<RecipeCategory> = rec_cats
-                        .into_iter()
-                        .map(|c| RecipeCategory {
-                            recipe_id: recipe.id,
-                            category_name: c.to_string(),
-                        })
-                        .collect();
-                    diesel::insert_into(recipe_category::table)
-                        .values(&all_rec_cats)
-                        .on_conflict_do_nothing()
-                        .execute(&mut connection)
-                        .await?;
-                }
-
-                let categories = get_recipe_categories(&mut connection, &recipe).await?;
-                return Ok((recipe, categories));
-            })
+            let categories = get_recipe_categories(&mut connection, &recipe).await?;
+            return Ok((recipe, categories));
         })
         .await;
 }
@@ -281,29 +277,27 @@ pub async fn delete_recipe(
     let mut connection = get_connection(db_pool).await?;
     return connection
         .build_transaction()
-        .run(|mut connection| {
-            Box::pin(async move {
-                diesel::delete(
-                    recipe_category::table.filter(recipe_category::recipe_id.eq(&recipe_id)),
-                )
+        .run(async |mut connection| {
+            diesel::delete(
+                recipe_category::table.filter(recipe_category::recipe_id.eq(&recipe_id)),
+            )
+            .execute(&mut connection)
+            .await?;
+            debug!("Removed category associations");
+
+            diesel::delete(
+                recipe_ingredient::table.filter(recipe_ingredient::recipe_id.eq(&recipe_id)),
+            )
+            .execute(&mut connection)
+            .await?;
+            debug!("Removed ingredient associations");
+
+            diesel::delete(recipes::table.find(&recipe_id))
                 .execute(&mut connection)
                 .await?;
-                debug!("Removed category associations");
+            debug!("Removed recipe");
 
-                diesel::delete(
-                    recipe_ingredient::table.filter(recipe_ingredient::recipe_id.eq(&recipe_id)),
-                )
-                .execute(&mut connection)
-                .await?;
-                debug!("Removed ingredient associations");
-
-                diesel::delete(recipes::table.find(&recipe_id))
-                    .execute(&mut connection)
-                    .await?;
-                debug!("Removed recipe");
-
-                return Ok(());
-            })
+            return Ok(());
         })
         .await;
 }
