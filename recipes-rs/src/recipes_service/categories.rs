@@ -64,19 +64,17 @@ pub async fn delete_category(
     // TODO: return custom error upon rollback
     connection
         .build_transaction()
-        .run(|mut connection| {
-            Box::pin(async move {
-                let recipe_assoc = get_category_recipes(&mut connection, &name).await?;
-                if !recipe_assoc.is_empty() {
-                    return Err(diesel::result::Error::RollbackTransaction);
-                }
-                diesel::delete(categories::table.find(name))
-                    .execute(&mut connection)
-                    .await?;
-                debug!("Removed category");
+        .run(async |mut connection| {
+            let recipe_assoc = get_category_recipes(&mut connection, &name).await?;
+            if !recipe_assoc.is_empty() {
+                return Err(diesel::result::Error::RollbackTransaction);
+            }
+            diesel::delete(categories::table.find(name))
+                .execute(&mut connection)
+                .await?;
+            debug!("Removed category");
 
-                return Ok(());
-            })
+            return Ok(());
         })
         .await?;
 
