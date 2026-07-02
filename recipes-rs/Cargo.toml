@@ -12,6 +12,7 @@ diesel-async = { version = "0.5.1", features = ["postgres", "deadpool"] }
 bigdecimal = "0.4.5"
 actix-web = "4"
 actix-multipart = "0.8"
+actix-web-lab = "0.26"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 derive_more = { version = "2.1.0", features = ["display", "error", "from", "deref", "deref_mut"] }
