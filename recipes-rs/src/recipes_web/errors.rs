@@ -6,6 +6,7 @@ use actix_web::{
 };
 use derive_more::derive::{Display, Error};
 use diesel::result::Error as DieselError;
+use log::error;
 
 #[derive(Debug, Display, Error)]
 pub enum ApiErrors {
@@ -46,8 +47,14 @@ impl From<DieselError> for ApiErrors {
     fn from(diesel_error: DieselError) -> Self {
         match diesel_error {
             DieselError::NotFound => Self::NotFound,
-            DieselError::DatabaseError(_kind, _error_info) => Self::BadRequest,
-            _ => Self::InternalError,
+            DieselError::DatabaseError(kind, error_info) => {
+                error!(kind:?, error_info:?; "Database error");
+                Self::BadRequest
+            }
+            _ => {
+                error!(diesel_error:?; "Internal diesel error");
+                Self::InternalError
+            }
         }
     }
 }
