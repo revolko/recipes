@@ -153,43 +153,7 @@ pub async fn create_recipe(
                 .await?;
             debug!(recipe:serde; "Created recipe");
 
-            let mut rec_ings_assoc: Vec<RecipeIngredient> = vec![];
-            for rec_ing in rec_ings {
-                let ing: Ingredient = match diesel::insert_into(ingredients::table)
-                    .values(&NewIngredient { name: rec_ing.name })
-                    .on_conflict_do_nothing()
-                    .returning(Ingredient::as_returning())
-                    .get_result(&mut connection)
-                    .await
-                    .optional()?
-                {
-                    Some(ingredient) => {
-                        debug!(ingredient:serde; "Created ingredient");
-                        ingredient
-                    }
-                    None => {
-                        debug!(ingredient = rec_ing.name; "Ingredient already exists");
-                        ingredients::table
-                            .filter(ingredients::name.eq(rec_ing.name))
-                            .select(Ingredient::as_select())
-                            .first(&mut connection)
-                            .await?
-                    }
-                };
-
-                rec_ings_assoc.push(RecipeIngredient {
-                    recipe_id: recipe.id,
-                    ingredient_id: ing.id,
-                    part: rec_ing.part,
-                    quantity: rec_ing.quantity.into(),
-                    //TODO: can get rid of to string?
-                    unit: rec_ing.unit.to_string(),
-                });
-            }
-            diesel::insert_into(recipe_ingredient::table)
-                .values(&rec_ings_assoc)
-                .execute(&mut connection)
-                .await?;
+            create_recipe_ingredients(&mut connection, &recipe, rec_ings).await?;
 
             let rec_cats: Vec<RecipeCategory> = categories_names
                 .iter()
@@ -215,8 +179,8 @@ pub async fn update_recipe(
     recipe_id: &i32,
     change_recipe: &ChangeRecipe,
     rec_cats: &Option<Vec<String>>,
+    rec_ings: Option<&Vec<NewRecipeIngredient<'_>>>,
 ) -> Result<(Recipe, Vec<Category>), ServiceError> {
-    // add/remove ingredient associations
     info!(recipe_id; "Changing recipe");
     let mut connection = get_connection(db_pool).await?;
     return connection
@@ -251,6 +215,17 @@ pub async fn update_recipe(
                     .on_conflict_do_nothing()
                     .execute(&mut connection)
                     .await?;
+            }
+
+            if let Some(rec_ings) = rec_ings {
+                debug!(ingredients:serde = rec_ings; "Updating ingredients");
+                diesel::delete(recipe_ingredient::table)
+                    .filter(recipe_ingredient::recipe_id.eq(recipe.id))
+                    .execute(&mut connection)
+                    .await?;
+
+                let _recipe_ingredients =
+                    create_recipe_ingredients(&mut connection, &recipe, rec_ings).await?;
             }
 
             let categories = get_recipe_categories(&mut connection, &recipe).await?;
@@ -333,5 +308,51 @@ async fn get_recipe_categories(
         .inner_join(categories::table)
         .select(Category::as_select())
         .load(connection)
+        .await;
+}
+
+async fn create_recipe_ingredients(
+    connection: &mut AsyncPgConnection,
+    recipe: &Recipe,
+    rec_ings: &Vec<NewRecipeIngredient<'_>>,
+) -> Result<Vec<RecipeIngredient>, diesel::result::Error> {
+    let new_ings_query: Vec<NewIngredient<'_>> = rec_ings
+        .iter()
+        .map(|ing| NewIngredient { name: ing.name })
+        .collect();
+
+    let new_ings = diesel::insert_into(ingredients::table)
+        .values(&new_ings_query)
+        .on_conflict_do_nothing()
+        .returning(Ingredient::as_returning())
+        .get_results(connection)
+        .await?;
+    debug!(ingredients:serde = new_ings; "Created ingredients");
+
+    let ings_names: Vec<&str> = rec_ings.iter().map(|ing| ing.name).collect();
+    let ings: Vec<Ingredient> = ingredients::table
+        .filter(ingredients::name.eq_any(ings_names))
+        .get_results(connection)
+        .await?;
+
+    let mut recipe_ings: Vec<RecipeIngredient> = vec![];
+    for ingredient in ings {
+        for rec_ing in rec_ings {
+            if ingredient.name == rec_ing.name {
+                recipe_ings.push(RecipeIngredient {
+                    recipe_id: recipe.id,
+                    ingredient_id: ingredient.id,
+                    part: rec_ing.part,
+                    quantity: rec_ing.quantity.into(),
+                    //TODO: can get rid of to string?
+                    unit: rec_ing.unit.to_string(),
+                });
+            }
+        }
+    }
+    return diesel::insert_into(recipe_ingredient::table)
+        .values(&recipe_ings)
+        .returning(RecipeIngredient::as_returning())
+        .get_results(connection)
         .await;
 }

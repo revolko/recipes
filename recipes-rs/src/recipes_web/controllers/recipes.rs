@@ -197,7 +197,6 @@ pub async fn recipes_change(
     path: web::Path<i32>,
     recipe_changeset_body: web::Json<ChangeRecipe>,
 ) -> actix_web::Result<impl Responder, errors::ApiErrors> {
-    // TODO: enable update of ingredients
     let recipe_id = path.into_inner();
     let recipe_changeset_body = recipe_changeset_body.into_inner();
     let recipe_changeset = ChangeRecipeUpdate {
@@ -209,12 +208,24 @@ pub async fn recipes_change(
         portions: recipe_changeset_body.portions,
         difficulty: recipe_changeset_body.difficulty,
     };
+    let rec_ings = recipe_changeset_body.ingredients.as_ref().map(|rec_ings| {
+        rec_ings
+            .iter()
+            .map(|rec_ing| NewRecipeIngredient {
+                name: &rec_ing.name,
+                part: rec_ing.part,
+                quantity: rec_ing.quantity,
+                unit: &rec_ing.unit,
+            })
+            .collect()
+    });
 
     let (recipe, categories_vec) = update_recipe(
         pool.into_inner(),
         &recipe_id,
         &recipe_changeset,
         &recipe_changeset_body.categories,
+        rec_ings.as_ref(),
     )
     .await?;
     let recipe_body = RecipeResponse {

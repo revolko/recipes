@@ -49,6 +49,7 @@ pub struct ChangeRecipe {
     pub portions: Option<i32>,
     pub difficulty: Option<i32>,
     pub categories: Option<Vec<String>>,
+    pub ingredients: Option<Vec<NewIngredients>>,
 }
 
 #[derive(MultipartForm)]
