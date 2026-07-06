@@ -8,4 +8,6 @@ pub enum ServiceError {
     DbPool(#[from] PoolError),
     #[error("Diesel error : {0}")]
     DbDiesel(#[from] DieselError),
+    #[error("Internal error : {0}")]
+    Internal(String),
 }

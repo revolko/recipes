@@ -47,7 +47,7 @@ pub async fn recipes_list(
 
     let recipes_full: Vec<RecipeResponse> = recipes_categories
         .into_iter()
-        .map(|(recipe, categories)| RecipeResponse {
+        .map(|(recipe, categories, rec_ings)| RecipeResponse {
             id: recipe.id,
             name: recipe.name,
             instructions: recipe.instructions,
@@ -57,6 +57,7 @@ pub async fn recipes_list(
             portions: recipe.portions,
             difficulty: recipe.difficulty,
             categories: categories.into_iter().map(|c| c.into()).collect(),
+            ingredients: rec_ings.into_iter().map(|rec_ing| rec_ing.into()).collect(),
         })
         .collect();
 
@@ -84,7 +85,7 @@ pub async fn recipes_get(
 ) -> actix_web::Result<impl Responder, errors::ApiErrors> {
     let recipe_id = path.into_inner();
 
-    let (recipe, categories) = get_recipe(pool.into_inner(), &recipe_id).await?;
+    let (recipe, categories, recipe_ings) = get_recipe(pool.into_inner(), &recipe_id).await?;
 
     let response = RecipeResponse {
         id: recipe.id,
@@ -96,6 +97,10 @@ pub async fn recipes_get(
         portions: recipe.portions,
         difficulty: recipe.difficulty,
         categories: categories.into_iter().map(|c| c.into()).collect(),
+        ingredients: recipe_ings
+            .into_iter()
+            .map(|rec_ing| rec_ing.into())
+            .collect(),
     };
 
     let response_serialized = serde_json::to_string(&response)?;
@@ -158,7 +163,7 @@ pub async fn recipes_create(
         .collect();
 
     // TODO: improve error handling -- by improving return of the transaction
-    let (recipe, categories) = create_recipe(
+    let (recipe, categories, recipe_ings) = create_recipe(
         pool.into_inner(),
         &new_recipe,
         &recipe_body.categories,
@@ -176,6 +181,10 @@ pub async fn recipes_create(
         portions: recipe.portions,
         difficulty: recipe.difficulty,
         categories: categories.into_iter().map(|c| c.into()).collect(),
+        ingredients: recipe_ings
+            .into_iter()
+            .map(|rec_ing| rec_ing.into())
+            .collect(),
     };
 
     let response_serialized = serde_json::to_string(&response)?;
@@ -220,7 +229,7 @@ pub async fn recipes_change(
             .collect()
     });
 
-    let (recipe, categories_vec) = update_recipe(
+    let (recipe, categories_vec, recipe_ings) = update_recipe(
         pool.into_inner(),
         &recipe_id,
         &recipe_changeset,
@@ -238,6 +247,10 @@ pub async fn recipes_change(
         portions: recipe.portions,
         difficulty: recipe.difficulty,
         categories: categories_vec.into_iter().map(|c| c.into()).collect(),
+        ingredients: recipe_ings
+            .into_iter()
+            .map(|rec_ing| rec_ing.into())
+            .collect(),
     };
     let response_serialized = serde_json::to_string(&recipe_body)?;
 

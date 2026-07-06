@@ -23,3 +23,4 @@ thiserror = "2.0"
 log = { version="0.4", features = ["kv"] }
 structured-logger = "1.0"
 mime = "0.3"
+itertools = "0.15"
